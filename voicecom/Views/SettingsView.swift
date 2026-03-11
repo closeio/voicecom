@@ -8,7 +8,7 @@ struct SettingsView: View {
             GeneralSettingsTab()
                 .environment(appState)
                 .tabItem {
-                    Label("General", systemImage: "gear")
+                    Label("Settings", systemImage: "gear")
                 }
 
             PermissionsSettingsTab()
@@ -17,7 +17,7 @@ struct SettingsView: View {
                     Label("Permissions", systemImage: "lock.shield")
                 }
         }
-        .frame(width: 450, height: 420)
+        .frame(width: 450, height: 520)
         .onAppear {
             // Keep settings window above other windows since this is a menu bar app
             if let window = NSApp.windows.first(where: { $0.isVisible }) {
@@ -36,6 +36,26 @@ struct GeneralSettingsTab: View {
 
     var body: some View {
         Form {
+            Section("Transcription Backend") {
+                Picker("Backend", selection: Binding(
+                    get: { appState.selectedBackend },
+                    set: { newValue in
+                        if newValue != appState.selectedBackend {
+                            Task { await appState.switchBackend(to: newValue) }
+                        }
+                    }
+                )) {
+                    ForEach(TranscriptionBackendType.allCases) { backend in
+                        Text(backend.displayName).tag(backend)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text("WhisperKit uses Apple CoreML for GPU/ANE acceleration. whisper.cpp uses GGML for CPU-based inference with lower memory usage.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Transcription Model") {
                 if appState.availableModels.isEmpty {
                     Text("Loading models...")

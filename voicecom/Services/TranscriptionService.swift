@@ -55,6 +55,8 @@ final class TranscriptionService: @unchecked Sendable {
 enum TranscriptionError: LocalizedError {
     case modelNotLoaded
     case modelDownloadFailed
+    case modelLoadFailed
+    case transcriptionFailed
 
     var errorDescription: String? {
         switch self {
@@ -62,6 +64,10 @@ enum TranscriptionError: LocalizedError {
             return "Whisper model is not loaded"
         case .modelDownloadFailed:
             return "Failed to download model"
+        case .modelLoadFailed:
+            return "Failed to load model"
+        case .transcriptionFailed:
+            return "Transcription failed"
         }
     }
 }
