@@ -1,5 +1,5 @@
 import Foundation
-import whisper
+import LocalWhisper
 
 final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
     private var context: OpaquePointer? // whisper_context *
@@ -84,53 +84,53 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
         }
 
         // Run transcription on a background thread since whisper_full blocks
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
-                params.no_timestamps = true
-                params.print_special = false
-                params.print_progress = false
-                params.print_realtime = false
-                params.print_timestamps = false
-                params.language = "en".withCString { strdup($0) }
+        let ctx = context
+        let audio = audioBuffer
+        return try await Task.detached(priority: .userInitiated) {
+            try Self.runTranscription(context: ctx, audioBuffer: audio)
+        }.value
+    }
 
-                let result = audioBuffer.withUnsafeBufferPointer { bufferPointer in
-                    whisper_full(context, params, bufferPointer.baseAddress, Int32(audioBuffer.count))
-                }
+    private static func runTranscription(context: OpaquePointer, audioBuffer: [Float]) throws -> String {
+        var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
+        params.no_timestamps = true
+        params.print_special = false
+        params.print_progress = false
+        params.print_realtime = false
+        params.print_timestamps = false
 
-                // Free the strdup'd language string
-                if let lang = params.language {
-                    free(UnsafeMutablePointer(mutating: lang))
-                }
+        let langStr = strdup("en")
+        params.language = UnsafePointer(langStr)
 
-                guard result == 0 else {
-                    continuation.resume(throwing: TranscriptionError.transcriptionFailed)
-                    return
-                }
+        let result = audioBuffer.withUnsafeBufferPointer { bufferPointer in
+            whisper_full(context, params, bufferPointer.baseAddress, Int32(audioBuffer.count))
+        }
 
-                let segmentCount = whisper_full_n_segments(context)
-                var texts: [String] = []
-                for i in 0..<segmentCount {
-                    if let cStr = whisper_full_get_segment_text(context, i) {
-                        texts.append(String(cString: cStr))
-                    }
-                }
+        free(langStr)
 
-                let raw = texts
-                    .joined(separator: " ")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard result == 0 else {
+            throw TranscriptionError.transcriptionFailed
+        }
 
-                // Strip emojis and other non-text symbols that Whisper can hallucinate
-                let cleaned = raw.unicodeScalars
-                    .filter { !$0.properties.isEmoji || $0.isASCII }
-                    .map { Character($0) }
-                    .map { String($0) }
-                    .joined()
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-
-                continuation.resume(returning: cleaned)
+        let segmentCount = whisper_full_n_segments(context)
+        var texts: [String] = []
+        for i in 0..<segmentCount {
+            if let cStr = whisper_full_get_segment_text(context, i) {
+                texts.append(String(cString: cStr))
             }
         }
+
+        let raw = texts
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip emojis and other non-text symbols that Whisper can hallucinate
+        return raw.unicodeScalars
+            .filter { !$0.properties.isEmoji || $0.isASCII }
+            .map { Character($0) }
+            .map { String($0) }
+            .joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func unloadModel() {
