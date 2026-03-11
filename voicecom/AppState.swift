@@ -30,6 +30,21 @@ final class AppState {
         set { UserDefaults.standard.set(Int(newValue), forKey: "hotkeyModifiers") }
     }
 
+    var pttEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "pttEnabled") }
+        set { UserDefaults.standard.set(newValue, forKey: "pttEnabled") }
+    }
+
+    var pttKeyCode: UInt16 {
+        get { UInt16(UserDefaults.standard.integer(forKey: "pttKeyCode")) }
+        set { UserDefaults.standard.set(Int(newValue), forKey: "pttKeyCode") }
+    }
+
+    var pttModifiers: UInt {
+        get { UInt(UserDefaults.standard.integer(forKey: "pttModifiers")) }
+        set { UserDefaults.standard.set(Int(newValue), forKey: "pttModifiers") }
+    }
+
     // MARK: - Services
     let audioRecorder = AudioRecorder()
     let transcriptionService = TranscriptionService()
@@ -47,6 +62,15 @@ final class AppState {
         if UserDefaults.standard.object(forKey: "hotkeyKeyCode") == nil {
             hotkeyKeyCode = 15 // "R" key
             hotkeyModifiers = UInt(
+                NSEvent.ModifierFlags.option.rawValue |
+                NSEvent.ModifierFlags.shift.rawValue
+            )
+        }
+
+        // Set default push-to-talk hotkey if not configured: Option+Shift+T
+        if UserDefaults.standard.object(forKey: "pttKeyCode") == nil {
+            pttKeyCode = 17 // "T" key
+            pttModifiers = UInt(
                 NSEvent.ModifierFlags.option.rawValue |
                 NSEvent.ModifierFlags.shift.rawValue
             )
@@ -71,6 +95,26 @@ final class AppState {
             }
         }
         hotkeyManager.register(keyCode: hotkeyKeyCode, modifiers: hotkeyModifiers)
+
+        hotkeyManager.onPushToTalkDown = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.startRecordingIfNeeded()
+                }
+            }
+        }
+        hotkeyManager.onPushToTalkUp = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.stopRecordingIfNeeded()
+                }
+            }
+        }
+        if pttEnabled {
+            hotkeyManager.registerPushToTalk(keyCode: pttKeyCode, modifiers: pttModifiers)
+        }
 
         await loadAvailableModels()
         await loadModel()
@@ -137,6 +181,35 @@ final class AppState {
         hotkeyKeyCode = keyCode
         hotkeyModifiers = modifiers
         hotkeyManager.register(keyCode: keyCode, modifiers: modifiers)
+    }
+
+    func updatePushToTalkHotkey(keyCode: UInt16, modifiers: UInt) {
+        pttKeyCode = keyCode
+        pttModifiers = modifiers
+        if pttEnabled {
+            hotkeyManager.registerPushToTalk(keyCode: keyCode, modifiers: modifiers)
+        }
+    }
+
+    func setPushToTalkEnabled(_ enabled: Bool) {
+        pttEnabled = enabled
+        if enabled {
+            hotkeyManager.registerPushToTalk(keyCode: pttKeyCode, modifiers: pttModifiers)
+        } else {
+            hotkeyManager.unregisterPushToTalk()
+        }
+    }
+
+    /// Start recording (used by push-to-talk key down). No-op if already recording.
+    func startRecordingIfNeeded() async {
+        guard !isRecording, !isTranscribing else { return }
+        await startRecording()
+    }
+
+    /// Stop recording and transcribe (used by push-to-talk key up). No-op if not recording.
+    func stopRecordingIfNeeded() async {
+        guard isRecording else { return }
+        await stopRecordingAndTranscribe()
     }
 
     // MARK: - Private

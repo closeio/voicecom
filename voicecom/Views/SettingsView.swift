@@ -17,7 +17,13 @@ struct SettingsView: View {
                     Label("Permissions", systemImage: "lock.shield")
                 }
         }
-        .frame(width: 450, height: 300)
+        .frame(width: 450, height: 420)
+        .onAppear {
+            // Keep settings window above other windows since this is a menu bar app
+            if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                window.level = .floating
+            }
+        }
     }
 }
 
@@ -26,6 +32,7 @@ struct SettingsView: View {
 struct GeneralSettingsTab: View {
     @Environment(AppState.self) private var appState
     @State private var isRecordingHotkey = false
+    @State private var isRecordingPTTHotkey = false
 
     var body: some View {
         Form {
@@ -98,19 +105,77 @@ struct GeneralSettingsTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Push-to-Talk Shortcut") {
+                Toggle("Enable Push-to-Talk", isOn: Binding(
+                    get: { appState.pttEnabled },
+                    set: { appState.setPushToTalkEnabled($0) }
+                ))
+
+                if appState.pttEnabled {
+                    HStack {
+                        Text("Hold to Record:")
+                        Spacer()
+
+                        if isRecordingPTTHotkey {
+                            HotkeyRecorderView { keyCode, modifiers in
+                                appState.updatePushToTalkHotkey(
+                                    keyCode: keyCode,
+                                    modifiers: modifiers.rawValue
+                                )
+                                isRecordingPTTHotkey = false
+                            }
+                            .frame(width: 120, height: 24)
+                            .background(Color.orange.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                Text("Press shortcut...")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            )
+                        } else {
+                            Text(pttHotkeyDescription)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.quaternary)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+
+                        Button(isRecordingPTTHotkey ? "Cancel" : "Change") {
+                            isRecordingPTTHotkey.toggle()
+                        }
+                    }
+
+                    Text("Default: \u{2325}\u{21E7}T (Option + Shift + T)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("Hold the shortcut to record, release to stop and transcribe.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding()
     }
 
     private var hotkeyDescription: String {
+        Self.describeHotkey(keyCode: appState.hotkeyKeyCode, modifiers: appState.hotkeyModifiers)
+    }
+
+    private var pttHotkeyDescription: String {
+        Self.describeHotkey(keyCode: appState.pttKeyCode, modifiers: appState.pttModifiers)
+    }
+
+    private static func describeHotkey(keyCode: UInt16, modifiers: UInt) -> String {
         var parts: [String] = []
-        let modifiers = NSEvent.ModifierFlags(rawValue: appState.hotkeyModifiers)
-        if modifiers.contains(.control) { parts.append("\u{2303}") }
-        if modifiers.contains(.option) { parts.append("\u{2325}") }
-        if modifiers.contains(.shift) { parts.append("\u{21E7}") }
-        if modifiers.contains(.command) { parts.append("\u{2318}") }
-        parts.append(Self.keyCodeToString(appState.hotkeyKeyCode))
+        let mods = NSEvent.ModifierFlags(rawValue: modifiers)
+        if mods.contains(.control) { parts.append("\u{2303}") }
+        if mods.contains(.option) { parts.append("\u{2325}") }
+        if mods.contains(.shift) { parts.append("\u{21E7}") }
+        if mods.contains(.command) { parts.append("\u{2318}") }
+        parts.append(keyCodeToString(keyCode))
         return parts.joined()
     }
 
