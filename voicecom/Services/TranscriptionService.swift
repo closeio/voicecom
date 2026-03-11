@@ -1,88 +1,67 @@
 import Foundation
-import WhisperKit
 
 final class TranscriptionService: @unchecked Sendable {
-    private var whisperKit: WhisperKit?
-    private var loadedModel: String?
+    private var backend: (any TranscriptionBackend)?
+    private var currentBackendType: TranscriptionBackendType?
 
-    static func fetchAvailableModels() async throws -> [String] {
-        try await WhisperKit.fetchAvailableModels()
-    }
-
-    private static var modelsDirectory: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("voicecom/models", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }
-
-    func loadModel(name: String) async throws {
-        if loadedModel == name, whisperKit != nil { return }
-
-        let modelsDir = Self.modelsDirectory
-        let config = WhisperKitConfig(
-            model: name,
-            downloadBase: modelsDir,
-            verbose: true,
-            logLevel: .debug,
-            prewarm: false,
-            load: true,
-            download: true
-        )
-        do {
-            whisperKit = try await WhisperKit(config)
-            loadedModel = name
-            print("[voicecom] Model '\(name)' loaded successfully")
-        } catch {
-            print("[voicecom] Model '\(name)' failed to load: \(error)")
-            throw error
+    /// Creates or returns the backend for the given type.
+    private func resolveBackend(for type: TranscriptionBackendType) -> any TranscriptionBackend {
+        if let backend, currentBackendType == type {
+            return backend
         }
+        // Switching backends: unload the old one
+        backend?.unloadModel()
+
+        let newBackend: any TranscriptionBackend
+        switch type {
+        case .whisperKit:
+            newBackend = WhisperKitBackend()
+        case .whisperCpp:
+            newBackend = WhisperCppBackend()
+        }
+        backend = newBackend
+        currentBackendType = type
+        return newBackend
+    }
+
+    func fetchAvailableModels(for type: TranscriptionBackendType) async throws -> [String] {
+        switch type {
+        case .whisperKit:
+            return try await WhisperKitBackend.fetchAvailableModels()
+        case .whisperCpp:
+            return try await WhisperCppBackend.fetchAvailableModels()
+        }
+    }
+
+    func loadModel(name: String, backendType: TranscriptionBackendType) async throws {
+        let backend = resolveBackend(for: backendType)
+        try await backend.loadModel(name: name)
     }
 
     func transcribe(audioBuffer: [Float]) async throws -> String {
-        guard let whisperKit else {
+        guard let backend else {
             throw TranscriptionError.modelNotLoaded
         }
-
-        let options = DecodingOptions(
-            verbose: false,
-            temperature: 0.0,
-            temperatureFallbackCount: 0,
-            sampleLength: 224,
-            usePrefillPrompt: true,
-            usePrefillCache: true,
-            skipSpecialTokens: true,
-            withoutTimestamps: true
-        )
-
-        let results = try await whisperKit.transcribe(audioArray: audioBuffer, decodeOptions: options)
-        let raw = results
-            .map(\.text)
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Strip emojis and other non-text symbols that Whisper can hallucinate
-        return raw.unicodeScalars
-            .filter { !$0.properties.isEmoji || $0.isASCII }
-            .map { Character($0) }
-            .map { String($0) }
-            .joined()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await backend.transcribe(audioBuffer: audioBuffer)
     }
 
     func unloadModel() {
-        whisperKit = nil
-        loadedModel = nil
+        backend?.unloadModel()
+        backend = nil
+        currentBackendType = nil
     }
 }
 
 enum TranscriptionError: LocalizedError {
     case modelNotLoaded
+    case modelDownloadFailed
 
     var errorDescription: String? {
         switch self {
         case .modelNotLoaded:
             return "Whisper model is not loaded"
+        case .modelDownloadFailed:
+            return "Failed to download model"
         }
     }
 }
