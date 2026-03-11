@@ -23,7 +23,10 @@ final class HotkeyManager {
         // Monitor key events when app IS focused (e.g., settings window open)
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) {
             [weak self] event in
-            self?.handleKeyEvent(event)
+            if self?.isMatchingHotkey(event) == true {
+                self?.handleKeyEvent(event)
+                return nil // Consume the event so it doesn't trigger twice
+            }
             return event
         }
     }
@@ -39,14 +42,17 @@ final class HotkeyManager {
         localMonitor = nil
     }
 
-    private func handleKeyEvent(_ event: NSEvent) {
+    private func isMatchingHotkey(_ event: NSEvent) -> Bool {
         let relevantModifiers: NSEvent.ModifierFlags = [
             .shift, .control, .option, .command
         ]
         let eventMods = event.modifierFlags.intersection(relevantModifiers)
         let targetMods = registeredModifiers.intersection(relevantModifiers)
+        return event.keyCode == registeredKeyCode && eventMods == targetMods
+    }
 
-        if event.keyCode == registeredKeyCode && eventMods == targetMods {
+    private func handleKeyEvent(_ event: NSEvent) {
+        if isMatchingHotkey(event) {
             onToggle?()
         }
     }
