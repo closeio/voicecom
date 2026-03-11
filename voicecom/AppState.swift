@@ -63,8 +63,11 @@ final class AppState {
         permissionManager.requestAccessibilityPermission()
 
         hotkeyManager.onToggle = { [weak self] in
-            Task { @MainActor in
-                await self?.toggleRecording()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                Task { @MainActor in
+                    await self.toggleRecording()
+                }
             }
         }
         hotkeyManager.register(keyCode: hotkeyKeyCode, modifiers: hotkeyModifiers)
@@ -116,7 +119,13 @@ final class AppState {
         }
     }
 
+    private var isToggling = false
+
     func toggleRecording() async {
+        guard !isToggling else { return }
+        isToggling = true
+        defer { isToggling = false }
+
         if isRecording {
             await stopRecordingAndTranscribe()
         } else {

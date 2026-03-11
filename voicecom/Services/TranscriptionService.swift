@@ -9,19 +9,34 @@ final class TranscriptionService: @unchecked Sendable {
         try await WhisperKit.fetchAvailableModels()
     }
 
+    private static var modelsDirectory: URL {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let dir = appSupport.appendingPathComponent("voicecom/models", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
     func loadModel(name: String) async throws {
         if loadedModel == name, whisperKit != nil { return }
 
+        let modelsDir = Self.modelsDirectory
         let config = WhisperKitConfig(
             model: name,
-            verbose: false,
-            logLevel: .none,
+            downloadBase: modelsDir,
+            verbose: true,
+            logLevel: .debug,
             prewarm: false,
             load: true,
             download: true
         )
-        whisperKit = try await WhisperKit(config)
-        loadedModel = name
+        do {
+            whisperKit = try await WhisperKit(config)
+            loadedModel = name
+            print("[voicecom] Model '\(name)' loaded successfully")
+        } catch {
+            print("[voicecom] Model '\(name)' failed to load: \(error)")
+            throw error
+        }
     }
 
     func transcribe(audioBuffer: [Float]) async throws -> String {
