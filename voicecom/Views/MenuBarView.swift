@@ -48,6 +48,12 @@ struct MenuBarView: View {
             Button("Settings...") {
                 NSApp.activate()
                 openSettings()
+                // Ensure the settings window floats above other windows
+                DispatchQueue.main.async {
+                    for window in NSApp.windows where window.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" {
+                        window.level = .floating
+                    }
+                }
             }
             .keyboardShortcut(",", modifiers: .command)
 
