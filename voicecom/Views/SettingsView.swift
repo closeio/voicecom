@@ -8,7 +8,7 @@ struct SettingsView: View {
             GeneralSettingsTab()
                 .environment(appState)
                 .tabItem {
-                    Label("Settings", systemImage: "gear")
+                    Label("General", systemImage: "gear")
                 }
 
             PermissionsSettingsTab()
@@ -17,9 +17,8 @@ struct SettingsView: View {
                     Label("Permissions", systemImage: "lock.shield")
                 }
         }
-        .frame(width: 450, height: 520)
+        .frame(width: 480, height: 540)
         .onAppear {
-            // Keep settings window above other windows since this is a menu bar app
             if let window = NSApp.windows.first(where: { $0.isVisible }) {
                 window.level = .floating
             }
@@ -58,8 +57,12 @@ struct GeneralSettingsTab: View {
 
             Section("Transcription Model") {
                 if appState.availableModels.isEmpty {
-                    Text("Loading models...")
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Loading models…")
+                            .foregroundStyle(.secondary)
+                    }
                 } else {
                     Picker("Model", selection: Binding(
                         get: { appState.selectedModel },
@@ -77,7 +80,7 @@ struct GeneralSettingsTab: View {
                 }
 
                 if appState.isModelDownloading {
-                    ProgressView("Downloading model...")
+                    ProgressView("Downloading model…")
                         .progressViewStyle(.linear)
                 }
 
@@ -87,88 +90,34 @@ struct GeneralSettingsTab: View {
                 }
             }
 
-            Section("Global Keyboard Shortcut") {
-                HStack {
-                    Text("Toggle Recording:")
-                    Spacer()
-
-                    if isRecordingHotkey {
-                        HotkeyRecorderView { keyCode, modifiers in
-                            appState.updateHotkey(
-                                keyCode: keyCode,
-                                modifiers: modifiers.rawValue
-                            )
-                            isRecordingHotkey = false
-                        }
-                        .frame(width: 120, height: 24)
-                        .background(Color.orange.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(
-                            Text("Press shortcut...")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        )
-                    } else {
-                        Text(hotkeyDescription)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.quaternary)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+            Section("Toggle Recording Shortcut") {
+                hotkeyRow(
+                    label: "Toggle Recording",
+                    description: hotkeyDescription,
+                    isRecording: $isRecordingHotkey,
+                    defaultHint: "Default: ⌥⇧R (Option + Shift + R)",
+                    onRecord: { keyCode, modifiers in
+                        appState.updateHotkey(keyCode: keyCode, modifiers: modifiers.rawValue)
                     }
-
-                    Button(isRecordingHotkey ? "Cancel" : "Change") {
-                        isRecordingHotkey.toggle()
-                    }
-                }
-
-                Text("Default: \u{2325}\u{21E7}R (Option + Shift + R)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                )
             }
 
-            Section("Push-to-Talk Shortcut") {
+            Section("Push-to-Talk") {
                 Toggle("Enable Push-to-Talk", isOn: Binding(
                     get: { appState.pttEnabled },
                     set: { appState.setPushToTalkEnabled($0) }
                 ))
 
                 if appState.pttEnabled {
-                    HStack {
-                        Text("Hold to Record:")
-                        Spacer()
-
-                        if isRecordingPTTHotkey {
-                            HotkeyRecorderView { keyCode, modifiers in
-                                appState.updatePushToTalkHotkey(
-                                    keyCode: keyCode,
-                                    modifiers: modifiers.rawValue
-                                )
-                                isRecordingPTTHotkey = false
-                            }
-                            .frame(width: 120, height: 24)
-                            .background(Color.orange.opacity(0.2))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                            .overlay(
-                                Text("Press shortcut...")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                            )
-                        } else {
-                            Text(pttHotkeyDescription)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(.quaternary)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                    hotkeyRow(
+                        label: "Hold to Record",
+                        description: pttHotkeyDescription,
+                        isRecording: $isRecordingPTTHotkey,
+                        defaultHint: "Default: ⌥⇧T (Option + Shift + T)",
+                        onRecord: { keyCode, modifiers in
+                            appState.updatePushToTalkHotkey(keyCode: keyCode, modifiers: modifiers.rawValue)
                         }
-
-                        Button(isRecordingPTTHotkey ? "Cancel" : "Change") {
-                            isRecordingPTTHotkey.toggle()
-                        }
-                    }
-
-                    Text("Default: \u{2325}\u{21E7}T (Option + Shift + T)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    )
                 }
 
                 Text("Hold the shortcut to record, release to stop and transcribe.")
@@ -178,6 +127,50 @@ struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    // MARK: - Hotkey Row
+
+    @ViewBuilder
+    private func hotkeyRow(
+        label: String,
+        description: String,
+        isRecording: Binding<Bool>,
+        defaultHint: String,
+        onRecord: @escaping (UInt16, NSEvent.ModifierFlags) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(label + ":")
+                Spacer()
+
+                if isRecording.wrappedValue {
+                    HotkeyRecorderView { keyCode, modifiers in
+                        onRecord(keyCode, modifiers)
+                        isRecording.wrappedValue = false
+                    }
+                    .frame(width: 120, height: 28)
+                    .background(Color.orange.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        Text("Press shortcut…")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    )
+                } else {
+                    KeyCapView(text: description)
+                }
+
+                Button(isRecording.wrappedValue ? "Cancel" : "Change") {
+                    isRecording.wrappedValue.toggle()
+                }
+                .controlSize(.small)
+            }
+
+            Text(defaultHint)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
     }
 
     private var hotkeyDescription: String {
@@ -217,6 +210,28 @@ struct GeneralSettingsTab: View {
     }
 }
 
+// MARK: - Key Cap View
+
+struct KeyCapView: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 13, weight: .medium, design: .rounded))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.background)
+                    .shadow(color: .primary.opacity(0.15), radius: 0.5, y: 1)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(.quaternary, lineWidth: 1)
+            )
+    }
+}
+
 // MARK: - Permissions Tab
 
 struct PermissionsSettingsTab: View {
@@ -228,37 +243,23 @@ struct PermissionsSettingsTab: View {
     var body: some View {
         Form {
             Section("Required Permissions") {
-                HStack {
-                    Label {
-                        Text("Microphone Access")
-                    } icon: {
-                        Image(systemName: micPermission
-                              ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(micPermission ? .green : .red)
-                    }
-                    Spacer()
-                    if !micPermission {
-                        Text("Will be requested on first recording")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                permissionRow(
+                    title: "Microphone Access",
+                    icon: "mic.fill",
+                    granted: micPermission,
+                    hint: "Will be requested on first recording",
+                    action: nil
+                )
 
-                HStack {
-                    Label {
-                        Text("Accessibility (for text paste)")
-                    } icon: {
-                        Image(systemName: accessibilityPermission
-                              ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(accessibilityPermission ? .green : .red)
+                permissionRow(
+                    title: "Accessibility (for text paste)",
+                    icon: "keyboard",
+                    granted: accessibilityPermission,
+                    hint: nil,
+                    action: {
+                        appState.permissionManager.requestAccessibilityPermission()
                     }
-                    Spacer()
-                    if !accessibilityPermission {
-                        Button("Open System Settings") {
-                            appState.permissionManager.requestAccessibilityPermission()
-                        }
-                    }
-                }
+                )
             }
 
             Section {
@@ -277,7 +278,6 @@ struct PermissionsSettingsTab: View {
         .padding()
         .onAppear {
             refreshPermissions()
-            // Poll every 2 seconds so status updates after user grants in System Settings
             refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
                 Task { @MainActor in
                     refreshPermissions()
@@ -287,6 +287,38 @@ struct PermissionsSettingsTab: View {
         .onDisappear {
             refreshTimer?.invalidate()
             refreshTimer = nil
+        }
+    }
+
+    @ViewBuilder
+    private func permissionRow(
+        title: String,
+        icon: String,
+        granted: Bool,
+        hint: String?,
+        action: (() -> Void)?
+    ) -> some View {
+        HStack {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(granted ? .green : .secondary)
+            }
+
+            Spacer()
+
+            if granted {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            } else if let action {
+                Button("Open System Settings", action: action)
+                    .controlSize(.small)
+            } else if let hint {
+                Text(hint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
