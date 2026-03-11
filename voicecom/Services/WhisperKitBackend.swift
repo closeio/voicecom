@@ -40,9 +40,10 @@ final class WhisperKitBackend: TranscriptionBackend, @unchecked Sendable {
     }
 
     func transcribe(audioBuffer: [Float]) async throws -> String {
-        guard let whisperKit else {
+        guard let kit = whisperKit else {
             throw TranscriptionError.modelNotLoaded
         }
+        nonisolated(unsafe) let whisperKit = kit
 
         let options = DecodingOptions(
             verbose: false,

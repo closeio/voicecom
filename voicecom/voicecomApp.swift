@@ -11,7 +11,7 @@ struct voicecomApp: App {
         } label: {
             Image(systemName: appState.isRecording ? "mic.fill" : "mic")
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()

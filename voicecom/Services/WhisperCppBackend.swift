@@ -2,7 +2,7 @@ import Foundation
 import LocalWhisper
 
 final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
-    private var context: OpaquePointer? // whisper_context *
+    private nonisolated(unsafe) var context: OpaquePointer? // whisper_context *
     private var loadedModel: String?
 
     private static var modelsDirectory: URL {
@@ -84,14 +84,17 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
         }
 
         // Run transcription on a background thread since whisper_full blocks
-        let ctx = context
+        nonisolated(unsafe) let ctx = context
         let audio = audioBuffer
-        return try await Task.detached(priority: .userInitiated) {
+        let operation: @Sendable () throws -> String = {
             try Self.runTranscription(context: ctx, audioBuffer: audio)
+        }
+        return try await Task.detached(priority: .userInitiated) {
+            try operation()
         }.value
     }
 
-    private static func runTranscription(context: OpaquePointer, audioBuffer: [Float]) throws -> String {
+    private nonisolated static func runTranscription(context: OpaquePointer, audioBuffer: [Float]) throws -> String {
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
         params.no_timestamps = true
         params.print_special = false

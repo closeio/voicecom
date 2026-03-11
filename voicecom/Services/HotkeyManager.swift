@@ -9,16 +9,16 @@ final class HotkeyManager {
     var onPushToTalkUp: (() -> Void)?
 
     // MARK: - Toggle hotkey state
-    private var globalMonitor: Any?
-    private var localMonitor: Any?
+    private nonisolated(unsafe) var globalMonitor: Any?
+    private nonisolated(unsafe) var localMonitor: Any?
     private var registeredKeyCode: UInt16 = 0
     private var registeredModifiers: NSEvent.ModifierFlags = []
 
     // MARK: - Push-to-talk hotkey state
-    private var pttGlobalKeyDownMonitor: Any?
-    private var pttGlobalKeyUpMonitor: Any?
-    private var pttLocalKeyDownMonitor: Any?
-    private var pttLocalKeyUpMonitor: Any?
+    private nonisolated(unsafe) var pttGlobalKeyDownMonitor: Any?
+    private nonisolated(unsafe) var pttGlobalKeyUpMonitor: Any?
+    private nonisolated(unsafe) var pttLocalKeyDownMonitor: Any?
+    private nonisolated(unsafe) var pttLocalKeyUpMonitor: Any?
     private var pttKeyCode: UInt16 = 0
     private var pttModifiers: NSEvent.ModifierFlags = []
     private var pttEnabled = false
@@ -164,6 +164,11 @@ final class HotkeyManager {
     }
 
     deinit {
-        unregister()
+        if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
+        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
+        if let pttGlobalKeyDownMonitor { NSEvent.removeMonitor(pttGlobalKeyDownMonitor) }
+        if let pttGlobalKeyUpMonitor { NSEvent.removeMonitor(pttGlobalKeyUpMonitor) }
+        if let pttLocalKeyDownMonitor { NSEvent.removeMonitor(pttLocalKeyDownMonitor) }
+        if let pttLocalKeyUpMonitor { NSEvent.removeMonitor(pttLocalKeyUpMonitor) }
     }
 }
