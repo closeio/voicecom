@@ -1,0 +1,5 @@
+module LocalWhisper {
+    header "whisper.h"
+    link "c++"
+    export *
+}
