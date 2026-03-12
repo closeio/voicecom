@@ -19,6 +19,9 @@ final class WhisperKitBackend: TranscriptionBackend, @unchecked Sendable {
     func loadModel(name: String) async throws {
         if loadedModel == name, whisperKit != nil { return }
 
+        // Unload any previously loaded model
+        unloadModel()
+
         let modelsDir = Self.modelsDirectory
         let config = WhisperKitConfig(
             model: name,

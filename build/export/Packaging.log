@@ -1,0 +1,108 @@
+2026-03-12 12:49:03 +0000 [MT] Initial pipeline context: <IDEDistributionProcessingPipelineContext: 0x7af3de700; archive(resolved)="<IDEArchive: 0x7af36a8b0>", distributionTask(resolved)="2", distributionDestination(resolved)="1", distributionMethod(resolved)="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team(resolved)="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	Chain (11, self inclusive):
+	<IDEDistributionProcessingPipelineContext: 0x7af3de700; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionProcessingPipelineContext: 0x7af3de400; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc09e00; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc08f00; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc08c80; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc08a00; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc08780; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc08500; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="<IDEProvisioningBasicTeam: 0x7ad0247c0; teamID='UQ3WY4NN5Q', teamName='Vicenç Juan Tomas Monserrat'>">
+	<IDEDistributionContext: 0x7afc08280; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="(null)">
+	<IDEDistributionContext: 0x7afc08000; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="<IDEDistributionMethodDevelopmentSignedMac: 0x7aebe6ec0>", team="(null)">
+	<IDEDistributionContext: 0x100d86f50; archive = "<IDEArchive: 0x7af36a8b0>", distributionMethod="(null)", team="(null)">
+</IDEDistributionProcessingPipelineContext: 0x7af3de700>
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionCreateDestRootStep
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionCopyItemStep
+2026-03-12 12:49:03 +0000 [MT] Running /usr/bin/ditto '-V' '/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app' '/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app'
+2026-03-12 12:49:03 +0000  >>> Copying /Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app 
+2026-03-12 12:49:03 +0000  copying file ./Contents/_CodeSignature/CodeResources ... 
+2026-03-12 12:49:03 +0000  4322 bytes for ./Contents/_CodeSignature/CodeResources
+2026-03-12 12:49:03 +0000  copying file ./Contents/MacOS/voicecom ... 
+2026-03-12 12:49:03 +0000  3943424 bytes for ./Contents/MacOS/voicecom
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/gpt2_tokenizer_config.json ... 
+2026-03-12 12:49:03 +0000  234 bytes for ./Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/gpt2_tokenizer_config.json
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/t5_tokenizer_config.json ... 
+2026-03-12 12:49:03 +0000  20746 bytes for ./Contents/Resources/swift-transformers_Hub.bundle/Contents/Resources/t5_tokenizer_config.json
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/swift-transformers_Hub.bundle/Contents/Info.plist ... 
+2026-03-12 12:49:03 +0000  1137 bytes for ./Contents/Resources/swift-transformers_Hub.bundle/Contents/Info.plist
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/swift-crypto_Crypto.bundle/Contents/Resources/PrivacyInfo.xcprivacy ... 
+2026-03-12 12:49:03 +0000  398 bytes for ./Contents/Resources/swift-crypto_Crypto.bundle/Contents/Resources/PrivacyInfo.xcprivacy
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/swift-crypto_Crypto.bundle/Contents/Info.plist ... 
+2026-03-12 12:49:03 +0000  1132 bytes for ./Contents/Resources/swift-crypto_Crypto.bundle/Contents/Info.plist
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/AppIcon.icns ... 
+2026-03-12 12:49:03 +0000  59130 bytes for ./Contents/Resources/AppIcon.icns
+2026-03-12 12:49:03 +0000  copying file ./Contents/Resources/Assets.car ... 
+2026-03-12 12:49:03 +0000  447608 bytes for ./Contents/Resources/Assets.car
+2026-03-12 12:49:03 +0000  copying file ./Contents/Info.plist ... 
+2026-03-12 12:49:03 +0000  1701 bytes for ./Contents/Info.plist
+2026-03-12 12:49:03 +0000  copying file ./Contents/PkgInfo ... 
+2026-03-12 12:49:03 +0000  8 bytes for ./Contents/PkgInfo
+2026-03-12 12:49:03 +0000 [MT] /usr/bin/ditto exited with 0
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionEmbedProfileStep
+2026-03-12 12:49:03 +0000 [MT] Skipping profile for item: <IDEDistributionItem: 0x7af39cc60; bundleID='newstuff.io.voicecom', path='<DVTFilePath:0x7af39c540:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7af9013e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ade72dc0; name='Apple Development: vtomasr5@gmail.com (5X26Y38K9H)', hash='890A988AFAA8CD38D71C9DB9955853181D7750C3', serialNumber='227387A752CA96E64501C572B870D25B', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-03-11 15:55:24 +0000''>', entitlements='{
+    "com.apple.security.files.user-selected.read-only" = 1;
+}', teamID='UQ3WY4NN5Q', identifier='newstuff.io.voicecom', executablePath='<DVTFilePath:0x7af39c720:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app/Contents/MacOS/voicecom'>', hardenedRuntime='0'>'>
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionInfoPlistStep
+2026-03-12 12:49:03 +0000 [MT] Skipping step: IDEDistributionInfoPlistStep because it said so
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionAppThinningPlistStep
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionSymbolsStep
+2026-03-12 12:49:03 +0000 [MT] Skipping step: IDEDistributionSymbolsStep because it said so
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionAppThinningStep
+2026-03-12 12:49:03 +0000 [MT] Skipping step: IDEDistributionAppThinningStep because it said so
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionArchThinningStep
+2026-03-12 12:49:03 +0000 [MT] Archs to thin for item /Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app are []
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionODRStep
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionStripXattrsStep
+2026-03-12 12:49:03 +0000 [MT] Skipping stripping extended attributes because the codesign step will strip them.
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionCodesignStep
+2026-03-12 12:49:03 +0000 [MT] Entitlements for <IDEDistributionItem: 0x7af39cc60; bundleID='newstuff.io.voicecom', path='<DVTFilePath:0x7af39c540:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7af9013e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ade72dc0; name='Apple Development: vtomasr5@gmail.com (5X26Y38K9H)', hash='890A988AFAA8CD38D71C9DB9955853181D7750C3', serialNumber='227387A752CA96E64501C572B870D25B', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-03-11 15:55:24 +0000''>', entitlements='{
+    "com.apple.security.files.user-selected.read-only" = 1;
+}', teamID='UQ3WY4NN5Q', identifier='newstuff.io.voicecom', executablePath='<DVTFilePath:0x7af39c720:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app/Contents/MacOS/voicecom'>', hardenedRuntime='0'>'>: {
+    "com.apple.security.files.user-selected.read-only" = 1;
+}
+2026-03-12 12:49:03 +0000 [MT] Associated App Clip Identifiers Filter: Skipping because "com.apple.developer.associated-appclip-app-identifiers" is not present
+2026-03-12 12:49:03 +0000 [MT] Entitlements for <IDEDistributionItem: 0x7af39cc60; bundleID='newstuff.io.voicecom', path='<DVTFilePath:0x7af39c540:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7af9013e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ade73540; name='Apple Development: vtomasr5@gmail.com (5X26Y38K9H)', hash='890A988AFAA8CD38D71C9DB9955853181D7750C3', serialNumber='227387A752CA96E64501C572B870D25B', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-03-11 15:55:24 +0000''>', entitlements='{
+    "com.apple.security.files.user-selected.read-only" = 1;
+}', teamID='UQ3WY4NN5Q', identifier='newstuff.io.voicecom', executablePath='<DVTFilePath:0x7af39c720:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app/Contents/MacOS/voicecom'>', hardenedRuntime='0'>'> are: {
+    "com.apple.security.files.user-selected.read-only" = 1;
+}
+2026-03-12 12:49:03 +0000 [MT] Writing entitlements for <IDEDistributionItem: 0x7af39cc60; bundleID='newstuff.io.voicecom', path='<DVTFilePath:0x7af39c540:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x7af9013e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x7ade73540; name='Apple Development: vtomasr5@gmail.com (5X26Y38K9H)', hash='890A988AFAA8CD38D71C9DB9955853181D7750C3', serialNumber='227387A752CA96E64501C572B870D25B', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-03-11 15:55:24 +0000''>', entitlements='{
+    "com.apple.security.files.user-selected.read-only" = 1;
+}', teamID='UQ3WY4NN5Q', identifier='newstuff.io.voicecom', executablePath='<DVTFilePath:0x7af39c720:'/Users/vtomas/XCodeProjects/voicecom/voicecom/build/voicecom.xcarchive/Products/Applications/voicecom.app/Contents/MacOS/voicecom'>', hardenedRuntime='0'>'> to: /var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/entitlements~~~ChREg3
+2026-03-12 12:49:03 +0000 [MT] invoking codesign: <NSConcreteTask: 0x7acc40dc0; launchPath='/usr/bin/codesign', arguments='(
+    "-f",
+    "-s",
+    890A988AFAA8CD38D71C9DB9955853181D7750C3,
+    "--entitlements",
+    "/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/entitlements~~~ChREg3",
+    "--preserve-metadata=identifier,flags,runtime,launch-constraints,library-constraints",
+    "--generate-entitlement-der",
+    "--strip-disallowed-xattrs",
+    "-vvv",
+    "/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app"
+)'>
+2026-03-12 12:49:03 +0000 [MT] codesign output: /var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app: replacing existing signature
+/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app: signed app bundle with Mach-O thin (arm64) [newstuff.io.voicecom]
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionZipODRItemStep
+2026-03-12 12:49:03 +0000 [MT] Skipping step: IDEDistributionZipODRItemStep because it said so
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionSkipPackagingStep
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionAppStoreInformationStep
+2026-03-12 12:49:03 +0000 [MT] Skipping step: IDEDistributionAppStoreInformationStep because it said so
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionGenerateProcessedDistributionItems
+2026-03-12 12:49:03 +0000 [MT] IDEDistributionItem init <DVTFilePath:0x7af39d860:'/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app'>
+2026-03-12 12:49:03 +0000 [MT] [OPTIONAL] Didn't find embedded provisioning profile for <DVTFilePath:0x7af39d860:'/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app'>: Error Domain=NSCocoaErrorDomain Code=4 "No file at <DVTFilePath:0x7afce8930:'/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app/Contents/embedded.provisionprofile'>" UserInfo={NSLocalizedDescription=No file at <DVTFilePath:0x7afce8930:'/var/folders/sr/f3wl9qkd1n54m5c_xswt8m880000gn/T/XcodeDistPipeline.~~~4d3LH8/Root/Applications/voicecom.app/Contents/embedded.provisionprofile'>}
+2026-03-12 12:49:03 +0000 [MT] Processing step: IDEDistributionCreateManifestStep
+2026-03-12 12:49:03 +0000 [MT] Skipping step: IDEDistributionCreateManifestStep because it said so

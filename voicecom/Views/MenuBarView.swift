@@ -36,9 +36,6 @@ struct MenuBarView: View {
                 .padding(.vertical, 10)
         }
         .frame(width: 280)
-        .task {
-            await appState.setup()
-        }
     }
 
     // MARK: - Mic Button
