@@ -12,6 +12,12 @@ A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and t
 - **Configurable hotkeys** -- set your own keyboard shortcuts for toggle and push-to-talk
 - **Fully offline** -- models run locally, no network required after initial download
 
+## Screenshots
+
+| Menu bar popover | Settings — General | Settings — Permissions |
+|---|---|---|
+| ![Menu bar popover](img/Screenshot%202026-03-12%20at%2017.49.47.png) | ![Settings — General](img/Screenshot%202026-03-12%20at%2017.50.09.png) | ![Settings — Permissions](img/Screenshot%202026-03-12%20at%2017.50.16.png) |
+
 ## Requirements
 
 - macOS 26.2+
@@ -97,6 +103,3 @@ LocalWhisper/                # Local SPM package wrapping vendored whisper.cpp
   Package.swift              # Builds whisper.cpp for Apple platforms
 ```
 
-## License
-
-MIT
