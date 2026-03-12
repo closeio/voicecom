@@ -238,7 +238,6 @@ struct PermissionsSettingsTab: View {
     @Environment(AppState.self) private var appState
     @State private var micPermission = false
     @State private var accessibilityPermission = false
-    @State private var refreshTimer: Timer?
 
     var body: some View {
         Form {
@@ -257,7 +256,7 @@ struct PermissionsSettingsTab: View {
                     granted: accessibilityPermission,
                     hint: nil,
                     action: {
-                        appState.permissionManager.requestAccessibilityPermission()
+                        appState.permissionManager.openAccessibilitySettings()
                     }
                 )
             }
@@ -268,25 +267,16 @@ struct PermissionsSettingsTab: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section {
-                Text("Note: During development (running from Xcode), permissions reset on each build because the app signature changes.")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
         }
         .formStyle(.grouped)
         .padding()
-        .onAppear {
+        .task {
             refreshPermissions()
-            refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                Task { @MainActor in
-                    refreshPermissions()
-                }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { break }
+                refreshPermissions()
             }
-        }
-        .onDisappear {
-            refreshTimer?.invalidate()
-            refreshTimer = nil
         }
     }
 

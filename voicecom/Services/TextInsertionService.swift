@@ -15,8 +15,8 @@ final class TextInsertionService {
         pasteboard.setString(text, forType: .string)
 
         // Simulate Cmd+V after a short delay to ensure pasteboard is ready
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.simulatePaste()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.simulatePaste()
 
             // Restore previous clipboard after giving the paste time to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

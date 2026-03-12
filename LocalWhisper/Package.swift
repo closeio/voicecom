@@ -23,15 +23,10 @@ let package = Package(
                 "vendor/LICENSE",
                 "vendor/README.md",
                 "vendor/.git",
-                "vendor/.gitmodules",
                 "vendor/.gitignore",
                 "vendor/.github",
                 "vendor/.devops",
-                "vendor/.clang-format",
-                "vendor/.clang-tidy",
                 "vendor/.dockerignore",
-                "vendor/.editorconfig",
-                "vendor/.flake8",
 
                 // Directories we don't need
                 "vendor/cmake",
@@ -135,9 +130,10 @@ let package = Package(
                 "vendor/src/coreml/whisper-encoder-impl.m",
                 "vendor/src/coreml/whisper-decoder-impl.m",
             ],
-            publicHeadersPath: "vendor/include",
+            publicHeadersPath: "include",
             cSettings: [
                 // Include paths for internal headers
+                .headerSearchPath("vendor/include"),
                 .headerSearchPath("vendor/ggml/include"),
                 .headerSearchPath("vendor/ggml/src"),
                 .headerSearchPath("vendor/ggml/src/ggml-cpu"),
@@ -150,9 +146,13 @@ let package = Package(
                 .define("GGML_USE_CPU"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
+                .define("WHISPER_VERSION", to: "\"1.8.3\""),
+                .define("GGML_VERSION", to: "\"0.0.0\""),
+                .define("GGML_COMMIT", to: "\"unknown\""),
                 .define("_DARWIN_C_SOURCE"),
             ],
             cxxSettings: [
+                .headerSearchPath("vendor/include"),
                 .headerSearchPath("vendor/ggml/include"),
                 .headerSearchPath("vendor/ggml/src"),
                 .headerSearchPath("vendor/ggml/src/ggml-cpu"),
@@ -164,6 +164,9 @@ let package = Package(
                 .define("GGML_USE_CPU"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
+                .define("WHISPER_VERSION", to: "\"1.8.3\""),
+                .define("GGML_VERSION", to: "\"0.0.0\""),
+                .define("GGML_COMMIT", to: "\"unknown\""),
                 .define("_DARWIN_C_SOURCE"),
             ],
             linkerSettings: [

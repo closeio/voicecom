@@ -12,9 +12,12 @@ struct HotkeyRecorderView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: HotkeyRecorderNSView, context: Context) {
-        // Ensure the view becomes first responder once it's in the window
-        DispatchQueue.main.async {
-            nsView.window?.makeFirstResponder(nsView)
+        // Only request first responder if not already active, to avoid
+        // stealing focus on unrelated SwiftUI body re-evaluations.
+        if let window = nsView.window, window.firstResponder !== nsView {
+            DispatchQueue.main.async {
+                nsView.window?.makeFirstResponder(nsView)
+            }
         }
     }
 }
@@ -29,6 +32,8 @@ class HotkeyRecorderNSView: NSView {
         super.viewDidMoveToWindow()
         if window != nil {
             window?.makeFirstResponder(self)
+            // Only register the monitor once to avoid accumulating duplicate monitors
+            guard localMonitor == nil else { return }
             // Use a local event monitor to intercept key events before other monitors
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
@@ -40,6 +45,12 @@ class HotkeyRecorderNSView: NSView {
                 }
                 return event
             }
+        } else {
+            // View removed from window — clean up monitor
+            if let localMonitor {
+                NSEvent.removeMonitor(localMonitor)
+            }
+            localMonitor = nil
         }
     }
 

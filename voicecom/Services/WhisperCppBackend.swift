@@ -102,14 +102,12 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
         params.print_realtime = false
         params.print_timestamps = false
 
-        let langStr = strdup("en")
-        params.language = UnsafePointer(langStr)
-
-        let result = audioBuffer.withUnsafeBufferPointer { bufferPointer in
-            whisper_full(context, params, bufferPointer.baseAddress, Int32(audioBuffer.count))
+        let result = "en".withCString { langPtr in
+            params.language = langPtr
+            return audioBuffer.withUnsafeBufferPointer { bufferPointer in
+                whisper_full(context, params, bufferPointer.baseAddress, Int32(audioBuffer.count))
+            }
         }
-
-        free(langStr)
 
         guard result == 0 else {
             throw TranscriptionError.transcriptionFailed
@@ -177,8 +175,8 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
             process.arguments = ["-o", tempZipDest.path, "-d", modelsDirectory.path]
-            process.standardOutput = nil
-            process.standardError = nil
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
             try process.run()
             process.waitUntilExit()
 

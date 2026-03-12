@@ -13,6 +13,16 @@ final class AudioRecorder: @unchecked Sendable {
     private let delegate = RecorderDelegate()
 
     func startRecording() throws {
+        // Stop any previous recording and clean up its temp file
+        if let existingRecorder = audioRecorder {
+            existingRecorder.stop()
+            audioRecorder = nil
+        }
+        if let existingURL = tempFileURL {
+            try? FileManager.default.removeItem(at: existingURL)
+            tempFileURL = nil
+        }
+
         let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent("voicecom_recording_\(UUID().uuidString).wav")
 
@@ -101,10 +111,12 @@ final class AudioRecorder: @unchecked Sendable {
     private func resampleWithVDSP(_ input: [Float], from srcRate: Double, to dstRate: Double) -> [Float] {
         let ratio = srcRate / dstRate
         let outputCount = Int(Double(input.count) / ratio)
-        guard outputCount > 0 else { return [] }
+        guard outputCount > 0, input.count >= 2 else { return [] }
 
         var output = [Float](repeating: 0, count: outputCount)
-        var control = (0..<outputCount).map { Float(Double($0) * ratio) }
+        // vDSP_vlint requires control values in [0, input.count - 1)
+        let maxIndex = Float(input.count - 1)
+        var control = (0..<outputCount).map { min(Float(Double($0) * ratio), maxIndex) }
         var inputCopy = input
         vDSP_vlint(&inputCopy, &control, 1, &output, 1, vDSP_Length(outputCount), vDSP_Length(input.count))
 

@@ -93,33 +93,23 @@ final class AppState {
         guard !hasSetup else { return }
         hasSetup = true
 
-        // Prompt for accessibility permission if not yet granted
-        permissionManager.requestAccessibilityPermission()
+         permissionManager.requestAccessibilityPermission()
 
         hotkeyManager.onToggle = { [weak self] in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                Task { @MainActor in
-                    await self.toggleRecording()
-                }
+            Task { @MainActor in
+                await self?.toggleRecording()
             }
         }
         hotkeyManager.register(keyCode: hotkeyKeyCode, modifiers: hotkeyModifiers)
 
         hotkeyManager.onPushToTalkDown = { [weak self] in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                Task { @MainActor in
-                    await self.startRecordingIfNeeded()
-                }
+            Task { @MainActor in
+                await self?.startRecordingIfNeeded()
             }
         }
         hotkeyManager.onPushToTalkUp = { [weak self] in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                Task { @MainActor in
-                    await self.stopRecordingIfNeeded()
-                }
+            Task { @MainActor in
+                await self?.stopRecordingIfNeeded()
             }
         }
         if pttEnabled {
@@ -285,6 +275,7 @@ final class AppState {
         isRecording = false
         isTranscribing = true
         statusMessage = "Transcribing..."
+        errorMessage = nil
 
         guard !audioBuffer.isEmpty else {
             isTranscribing = false
@@ -302,6 +293,9 @@ final class AppState {
                 statusMessage = "Pasting..."
                 print("[voicecom] Transcription result: \(text)")
                 textInsertionService.insertText(text)
+                // Delay resetting status so the user can see "Pasting..."
+                // (insertText is asynchronous — the paste happens after ~0.1s)
+                try? await Task.sleep(for: .milliseconds(300))
                 statusMessage = "Ready"
             } else {
                 statusMessage = "Ready"
