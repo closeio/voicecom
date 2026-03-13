@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6DA96C522F6187EA00803E03 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6DA96C512F6187EA00803E03 /* WhisperKit */; };
 		6DCB94A32F61F1B600C8BFAA /* LocalWhisper in Frameworks */ = {isa = PBXBuildFile; productRef = 6DCB94A22F61F1B600C8BFAA /* LocalWhisper */; };
 /* End PBXBuildFile section */
 
@@ -57,7 +56,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6DA96C522F6187EA00803E03 /* WhisperKit in Frameworks */,
 				6DCB94A32F61F1B600C8BFAA /* LocalWhisper in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -119,7 +117,6 @@
 			);
 			name = voicecom;
 			packageProductDependencies = (
-				6DA96C512F6187EA00803E03 /* WhisperKit */,
 				6DCB94A22F61F1B600C8BFAA /* LocalWhisper */,
 			);
 			productName = voicecom;
@@ -205,7 +202,6 @@
 			mainGroup = 6DA96C102F6187E900803E03;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				6DA96C502F6187EA00803E03 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 				6DCB94A12F61F1B600C8BFAA /* XCLocalSwiftPackageReference "LocalWhisper" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -598,23 +594,7 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		6DA96C502F6187EA00803E03 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
-			requirement = {
-				kind = upToNextMinorVersion;
-				minimumVersion = 0.16.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		6DA96C512F6187EA00803E03 /* WhisperKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 6DA96C502F6187EA00803E03 /* XCRemoteSwiftPackageReference "WhisperKit" */;
-			productName = WhisperKit;
-		};
 		6DCB94A22F61F1B600C8BFAA /* LocalWhisper */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LocalWhisper;

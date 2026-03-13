@@ -15,18 +15,8 @@ final class AppState {
     var errorMessage: String?
 
     // MARK: - Settings
-    var selectedBackend: TranscriptionBackendType {
-        get {
-            let raw = UserDefaults.standard.string(forKey: "selectedBackend") ?? TranscriptionBackendType.whisperKit.rawValue
-            return TranscriptionBackendType(rawValue: raw) ?? .whisperKit
-        }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: "selectedBackend")
-        }
-    }
-
     var selectedModel: String {
-        get { UserDefaults.standard.string(forKey: "selectedModel") ?? "openai_whisper-small.en" }
+        get { UserDefaults.standard.string(forKey: "selectedModel") ?? "ggml-small" }
         set { UserDefaults.standard.set(newValue, forKey: "selectedModel") }
     }
 
@@ -41,7 +31,12 @@ final class AppState {
     }
 
     var pttEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: "pttEnabled") }
+        get {
+            if UserDefaults.standard.object(forKey: "pttEnabled") == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: "pttEnabled")
+        }
         set { UserDefaults.standard.set(newValue, forKey: "pttEnabled") }
     }
 
@@ -122,7 +117,7 @@ final class AppState {
 
     func loadAvailableModels() async {
         do {
-            let models = try await transcriptionService.fetchAvailableModels(for: selectedBackend)
+            let models = try await transcriptionService.fetchAvailableModels()
             self.availableModels = models
 
             // If the saved selection isn't supported on this device, pick a default
@@ -131,27 +126,13 @@ final class AppState {
             }
         } catch {
             self.errorMessage = "Failed to fetch models: \(error.localizedDescription)"
-            // Provide a fallback list based on backend
-            switch selectedBackend {
-            case .whisperKit:
-                self.availableModels = [
-                    "openai_whisper-tiny",
-                    "openai_whisper-tiny.en",
-                    "openai_whisper-base",
-                    "openai_whisper-base.en",
-                    "openai_whisper-small",
-                    "openai_whisper-small.en",
-                    "openai_whisper-large-v3",
-                ]
-            case .whisperCpp:
-                self.availableModels = [
-                    "ggml-tiny.en",
-                    "ggml-base.en",
-                    "ggml-small.en",
-                    "ggml-medium.en",
-                    "ggml-large-v3-turbo",
-                ]
-            }
+            self.availableModels = [
+                "ggml-tiny.en",
+                "ggml-base.en",
+                "ggml-small.en",
+                "ggml-medium.en",
+                "ggml-large-v3-turbo",
+            ]
         }
     }
 
@@ -163,7 +144,7 @@ final class AppState {
         errorMessage = nil
 
         do {
-            try await transcriptionService.loadModel(name: selectedModel, backendType: selectedBackend)
+            try await transcriptionService.loadModel(name: selectedModel)
             isModelLoaded = true
             isModelDownloading = false
             statusMessage = "Ready"
@@ -209,24 +190,6 @@ final class AppState {
         } else {
             hotkeyManager.unregisterPushToTalk()
         }
-    }
-
-    func switchBackend(to type: TranscriptionBackendType) async {
-        guard type != selectedBackend else { return }
-        selectedBackend = type
-        transcriptionService.unloadModel()
-        isModelLoaded = false
-
-        // Reset selected model to the default for the new backend
-        switch type {
-        case .whisperKit:
-            selectedModel = "openai_whisper-small.en"
-        case .whisperCpp:
-            selectedModel = "ggml-small.en"
-        }
-
-        await loadAvailableModels()
-        await loadModel()
     }
 
     /// Start recording (used by push-to-talk key down). No-op if already recording.

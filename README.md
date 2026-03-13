@@ -6,7 +6,7 @@ A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and t
 
 - **Menu bar app** -- lives in your menu bar, works system-wide with no dock icon
 - **Two input modes** -- toggle recording (press to start, press to stop) or push-to-talk (hold to record, release to transcribe)
-- **Two transcription backends** -- WhisperKit (CoreML, GPU/ANE accelerated) or whisper.cpp (GGML, CPU-based with optional CoreML encoder)
+- **whisper.cpp transcription** -- on-device inference via GGML with CPU + Accelerate and optional CoreML encoder for ANE acceleration
 - **Multiple model sizes** -- from tiny to large-v3, downloaded automatically on first use
 - **Automatic text insertion** -- transcribed text is pasted directly into the frontmost app
 - **Configurable hotkeys** -- set your own keyboard shortcuts for toggle and push-to-talk
@@ -44,7 +44,7 @@ A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and t
 | Action | Default Shortcut |
 |---|---|
 | Toggle recording | Option + Shift + R |
-| Push-to-talk (hold) | Option + Shift + T (disabled by default) |
+| Push-to-talk (hold) | Option + Shift + T (enabled by default) |
 
 1. Click the mic icon in the menu bar or press the toggle hotkey to start recording
 2. Speak
@@ -53,14 +53,9 @@ A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and t
 
 Shortcuts can be changed in Settings (Cmd+,).
 
-## Transcription Backends
+## Transcription
 
-| Backend | Engine | Acceleration | Best for |
-|---|---|---|---|
-| **WhisperKit** (default) | CoreML | GPU + Apple Neural Engine | Speed on Apple Silicon |
-| **whisper.cpp** | GGML | CPU + Accelerate (+ optional CoreML encoder) | Lower memory usage |
-
-Switch between backends in Settings. Models are downloaded from HuggingFace on first use and cached in `~/Library/Application Support/voicecom/models/`.
+voicecom uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for on-device transcription. The default model is `ggml-small`. Models are downloaded from HuggingFace on first use and cached in `~/Library/Application Support/voicecom/models/whispercpp/`. When available, a CoreML encoder is also downloaded for ANE acceleration (falls back to CPU automatically).
 
 ## Building from Source
 
@@ -86,8 +81,7 @@ voicecom/
   AppState.swift             # Central @Observable state, settings, service wiring
   Services/
     TranscriptionBackend.swift   # Protocol for transcription backends
-    TranscriptionService.swift   # Facade managing active backend
-    WhisperKitBackend.swift      # WhisperKit (CoreML) backend
+    TranscriptionService.swift   # Transcription service facade
     WhisperCppBackend.swift      # whisper.cpp (GGML) backend
     AudioRecorder.swift          # AVAudioRecorder-based recording
     TextInsertionService.swift   # Clipboard + CGEvent paste

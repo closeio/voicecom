@@ -13,17 +13,3 @@ protocol TranscriptionBackend: Sendable {
     /// Unloads the current model to free memory.
     func unloadModel()
 }
-
-enum TranscriptionBackendType: String, CaseIterable, Identifiable {
-    case whisperKit = "whisperKit"
-    case whisperCpp = "whisperCpp"
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .whisperKit: return "WhisperKit (CoreML)"
-        case .whisperCpp: return "whisper.cpp (GGML)"
-        }
-    }
-}

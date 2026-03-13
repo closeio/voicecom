@@ -1,40 +1,23 @@
 import Foundation
 
 final class TranscriptionService: @unchecked Sendable {
-    private var backend: (any TranscriptionBackend)?
-    private var currentBackendType: TranscriptionBackendType?
+    private var backend: WhisperCppBackend?
 
-    /// Creates or returns the backend for the given type.
-    private func resolveBackend(for type: TranscriptionBackendType) -> any TranscriptionBackend {
-        if let backend, currentBackendType == type {
+    private func resolveBackend() -> WhisperCppBackend {
+        if let backend {
             return backend
         }
-        // Switching backends: unload the old one
-        backend?.unloadModel()
-
-        let newBackend: any TranscriptionBackend
-        switch type {
-        case .whisperKit:
-            newBackend = WhisperKitBackend()
-        case .whisperCpp:
-            newBackend = WhisperCppBackend()
-        }
+        let newBackend = WhisperCppBackend()
         backend = newBackend
-        currentBackendType = type
         return newBackend
     }
 
-    func fetchAvailableModels(for type: TranscriptionBackendType) async throws -> [String] {
-        switch type {
-        case .whisperKit:
-            return try await WhisperKitBackend.fetchAvailableModels()
-        case .whisperCpp:
-            return try await WhisperCppBackend.fetchAvailableModels()
-        }
+    func fetchAvailableModels() async throws -> [String] {
+        try await WhisperCppBackend.fetchAvailableModels()
     }
 
-    func loadModel(name: String, backendType: TranscriptionBackendType) async throws {
-        let backend = resolveBackend(for: backendType)
+    func loadModel(name: String) async throws {
+        let backend = resolveBackend()
         try await backend.loadModel(name: name)
     }
 
@@ -48,7 +31,6 @@ final class TranscriptionService: @unchecked Sendable {
     func unloadModel() {
         backend?.unloadModel()
         backend = nil
-        currentBackendType = nil
     }
 }
 

@@ -35,26 +35,6 @@ struct GeneralSettingsTab: View {
 
     var body: some View {
         Form {
-            Section("Transcription Backend") {
-                Picker("Backend", selection: Binding(
-                    get: { appState.selectedBackend },
-                    set: { newValue in
-                        if newValue != appState.selectedBackend {
-                            Task { await appState.switchBackend(to: newValue) }
-                        }
-                    }
-                )) {
-                    ForEach(TranscriptionBackendType.allCases) { backend in
-                        Text(backend.displayName).tag(backend)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Text("WhisperKit uses Apple CoreML for GPU/ANE acceleration. whisper.cpp uses GGML for CPU-based inference with lower memory usage.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             Section("Transcription Model") {
                 if appState.availableModels.isEmpty {
                     HStack(spacing: 8) {
