@@ -68,10 +68,41 @@ xcodebuild -scheme voicecom -configuration Release -derivedDataPath build/Derive
 
 # Run tests
 xcodebuild test -scheme voicecom -derivedDataPath build/DerivedData
-
-# Archive
-xcodebuild archive -scheme voicecom -archivePath build/voicecom.xcarchive
 ```
+
+The Release `.app` bundle is output to `build/DerivedData/Build/Products/Release/voicecom.app`.
+
+### Creating a .dmg for Distribution
+
+To package the app into a `.dmg` installer with a drag-to-Applications layout:
+
+```bash
+# 1. Build in Release mode
+xcodebuild -scheme voicecom -configuration Release -derivedDataPath build/DerivedData
+
+# 2. Create a staging directory
+mkdir -p build/dmg_staging
+cp -R build/DerivedData/Build/Products/Release/voicecom.app build/dmg_staging/
+ln -s /Applications build/dmg_staging/Applications
+
+# 3. Create the .dmg
+hdiutil create -volname "voicecom" \
+  -srcfolder build/dmg_staging \
+  -ov -format UDZO \
+  build/voicecom.dmg
+
+# 4. Clean up staging directory
+rm -rf build/dmg_staging
+```
+
+The resulting `build/voicecom.dmg` can be shared and opened on any compatible Mac. Users open the DMG and drag `voicecom.app` into the Applications folder to install.
+
+> **Note:** For distribution outside your own machines, sign with a Developer ID certificate and notarize:
+> ```bash
+> codesign --force --deep --sign "Developer ID Application: Your Name (TEAM_ID)" build/DerivedData/Build/Products/Release/voicecom.app
+> xcrun notarytool submit build/voicecom.dmg --apple-id YOUR_APPLE_ID --team-id TEAM_ID --password APP_SPECIFIC_PASSWORD --wait
+> xcrun stapler staple build/voicecom.dmg
+> ```
 
 ## Project Structure
 
