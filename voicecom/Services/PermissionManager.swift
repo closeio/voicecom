@@ -2,7 +2,7 @@ import AVFoundation
 import AppKit
 import ApplicationServices
 
-final class PermissionManager {
+nonisolated final class PermissionManager: Sendable {
     var hasMicrophonePermission: Bool {
         AVAudioApplication.shared.recordPermission == .granted
     }

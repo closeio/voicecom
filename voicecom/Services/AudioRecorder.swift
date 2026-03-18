@@ -8,12 +8,20 @@ private final class RecorderDelegate: NSObject, AVAudioRecorderDelegate {
 }
 
 /// Audio recorder that captures to a temp WAV file (16kHz, 16-bit PCM) and
-/// returns the audio as a `[Float]` buffer. All methods must be called from
-/// the main thread (enforced by `@MainActor` callers in `AppState`).
-final class AudioRecorder: @unchecked Sendable {
+/// returns the audio as a `[Float]` buffer. Isolated to the main actor since
+/// `AVAudioRecorder` has main-thread affinity.
+@MainActor
+final class AudioRecorder {
     private var audioRecorder: AVAudioRecorder?
     private var tempFileURL: URL?
     private let delegate = RecorderDelegate()
+    private var maxDurationTimer: Timer?
+
+    /// Maximum recording duration in seconds. Prevents runaway recordings.
+    static let maxRecordingDuration: TimeInterval = 300 // 5 minutes
+
+    /// Callback invoked when the max duration timer fires.
+    var onMaxDurationReached: (() -> Void)?
 
     private static let tempFilePrefix = "voicecom_recording_"
 
@@ -27,9 +35,8 @@ final class AudioRecorder: @unchecked Sendable {
             try? FileManager.default.removeItem(at: existingURL)
             tempFileURL = nil
         }
-
-        // Clean up any stale temp files from previous sessions (e.g. after a crash)
-        Self.cleanupStaleTempFiles()
+        maxDurationTimer?.invalidate()
+        maxDurationTimer = nil
 
         let tempDir = FileManager.default.temporaryDirectory
         let fileURL = tempDir.appendingPathComponent("\(Self.tempFilePrefix)\(UUID().uuidString).wav")
@@ -53,10 +60,20 @@ final class AudioRecorder: @unchecked Sendable {
 
         self.audioRecorder = recorder
         self.tempFileURL = fileURL
+
+        // Safety timer to auto-stop very long recordings
+        maxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecordingDuration, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.onMaxDurationReached?()
+            }
+        }
     }
 
     func stopRecording() -> [Float] {
         guard let recorder = audioRecorder, let fileURL = tempFileURL else { return [] }
+
+        maxDurationTimer?.invalidate()
+        maxDurationTimer = nil
 
         let duration = recorder.currentTime
         recorder.stop()
@@ -132,7 +149,8 @@ final class AudioRecorder: @unchecked Sendable {
     }
 
     /// Remove any stale voicecom temp recordings left behind by crashes.
-    private static func cleanupStaleTempFiles() {
+    /// Called once at app launch rather than on every recording start.
+    static func cleanupStaleTempFiles() {
         let tempDir = FileManager.default.temporaryDirectory
         guard let contents = try? FileManager.default.contentsOfDirectory(
             at: tempDir,
@@ -144,15 +162,10 @@ final class AudioRecorder: @unchecked Sendable {
         }
     }
 
-    deinit {
-        // Stop any active recording and clean up the temp file
-        if let recorder = audioRecorder {
-            recorder.stop()
-        }
-        if let url = tempFileURL {
-            try? FileManager.default.removeItem(at: url)
-        }
-    }
+    // No deinit — AudioRecorder is owned by AppState which lives for the app
+    // lifetime. Accessing @MainActor-isolated properties from nonisolated deinit
+    // is a Swift 6 concurrency violation. Cleanup of temp files and recorder
+    // state happens in stopRecording() and startRecording().
 }
 
 enum AudioRecorderError: LocalizedError {

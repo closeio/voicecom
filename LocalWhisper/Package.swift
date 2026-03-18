@@ -13,10 +13,38 @@ let package = Package(
             targets: ["LocalWhisper"])
     ],
     targets: [
+        // Metal backend Objective-C files compiled without ARC (whisper.cpp uses manual retain/release)
+        .target(
+            name: "LocalWhisperMetal",
+            path: "MetalObjC",
+            resources: [
+                .copy("ggml-metal.metal"),
+            ],
+            publicHeadersPath: "include",
+            cSettings: [
+                .headerSearchPath("../vendor/include"),
+                .headerSearchPath("../vendor/ggml/include"),
+                .headerSearchPath("../vendor/ggml/src"),
+                .headerSearchPath("../vendor/ggml/src/ggml-metal"),
+                .define("GGML_USE_METAL"),
+                .define("GGML_USE_ACCELERATE"),
+                .define("GGML_USE_CPU"),
+                .define("_DARWIN_C_SOURCE"),
+                .unsafeFlags(["-fno-objc-arc"]),
+            ],
+            linkerSettings: [
+                .linkedFramework("Metal"),
+                .linkedFramework("Foundation"),
+            ]
+        ),
         .target(
             name: "LocalWhisper",
+            dependencies: ["LocalWhisperMetal"],
             path: ".",
             exclude: [
+                // MetalObjC target directory (compiled separately)
+                "MetalObjC",
+
                 // Top-level repo files
                 "vendor/CMakeLists.txt",
                 "vendor/Makefile",
@@ -47,8 +75,12 @@ let package = Package(
                 "vendor/ggml/.gitignore",
                 "vendor/ggml/src/CMakeLists.txt",
 
-                // Metal backend (requires shader compilation, excluded for now)
-                "vendor/ggml/src/ggml-metal",
+                // Metal backend CMake and shader source (pre-merged version in resources/)
+                "vendor/ggml/src/ggml-metal/CMakeLists.txt",
+                "vendor/ggml/src/ggml-metal/ggml-metal.metal",
+                // Metal ObjC files compiled separately in LocalWhisperMetal target (needs -fno-objc-arc)
+                "vendor/ggml/src/ggml-metal/ggml-metal-device.m",
+                "vendor/ggml/src/ggml-metal/ggml-metal-context.m",
 
                 // Non-Apple GPU/accelerator backends
                 "vendor/ggml/src/ggml-blas",
@@ -121,6 +153,12 @@ let package = Package(
                 "vendor/ggml/src/ggml-cpu/arch/arm/repack.cpp",
                 "vendor/ggml/src/ggml-cpu/arch/arm/cpu-feats.cpp",
 
+                // --- GGML Metal backend (GPU acceleration, C++ files only) ---
+                "vendor/ggml/src/ggml-metal/ggml-metal.cpp",
+                "vendor/ggml/src/ggml-metal/ggml-metal-device.cpp",
+                "vendor/ggml/src/ggml-metal/ggml-metal-common.cpp",
+                "vendor/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+
                 // --- Whisper ---
                 "vendor/src/whisper.cpp",
 
@@ -137,6 +175,7 @@ let package = Package(
                 .headerSearchPath("vendor/ggml/include"),
                 .headerSearchPath("vendor/ggml/src"),
                 .headerSearchPath("vendor/ggml/src/ggml-cpu"),
+                .headerSearchPath("vendor/ggml/src/ggml-metal"),
                 .headerSearchPath("vendor/src"),
 
                 // Feature flags
@@ -144,6 +183,7 @@ let package = Package(
                 .define("ACCELERATE_NEW_LAPACK"),
                 .define("ACCELERATE_LAPACK_ILP64"),
                 .define("GGML_USE_CPU"),
+                .define("GGML_USE_METAL"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
                 .define("WHISPER_VERSION", to: "\"1.8.3\""),
@@ -156,12 +196,14 @@ let package = Package(
                 .headerSearchPath("vendor/ggml/include"),
                 .headerSearchPath("vendor/ggml/src"),
                 .headerSearchPath("vendor/ggml/src/ggml-cpu"),
+                .headerSearchPath("vendor/ggml/src/ggml-metal"),
                 .headerSearchPath("vendor/src"),
 
                 .define("GGML_USE_ACCELERATE"),
                 .define("ACCELERATE_NEW_LAPACK"),
                 .define("ACCELERATE_LAPACK_ILP64"),
                 .define("GGML_USE_CPU"),
+                .define("GGML_USE_METAL"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
                 .define("WHISPER_VERSION", to: "\"1.8.3\""),
@@ -172,6 +214,8 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("Accelerate"),
                 .linkedFramework("CoreML"),
+                .linkedFramework("Metal"),
+                .linkedFramework("MetalKit"),
             ]
         ),
     ],
