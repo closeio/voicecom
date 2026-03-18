@@ -21,13 +21,29 @@ final class AppState {
         set { UserDefaults.standard.set(newValue, forKey: "selectedModel") }
     }
 
+    /// Default toggle hotkey: Option+Shift+R
+    private static let defaultHotkeyKeyCode: UInt16 = 15 // "R" key
+    private static let defaultHotkeyModifiers: UInt = UInt(
+        NSEvent.ModifierFlags.option.rawValue | NSEvent.ModifierFlags.shift.rawValue
+    )
+
     var hotkeyKeyCode: UInt16 {
-        get { UInt16(clamping: UserDefaults.standard.integer(forKey: "hotkeyKeyCode")) }
+        get {
+            guard UserDefaults.standard.object(forKey: "hotkeyKeyCode") != nil else {
+                return Self.defaultHotkeyKeyCode
+            }
+            return UInt16(clamping: UserDefaults.standard.integer(forKey: "hotkeyKeyCode"))
+        }
         set { UserDefaults.standard.set(Int(newValue), forKey: "hotkeyKeyCode") }
     }
 
     var hotkeyModifiers: UInt {
-        get { UInt(clamping: UserDefaults.standard.integer(forKey: "hotkeyModifiers")) }
+        get {
+            guard UserDefaults.standard.object(forKey: "hotkeyModifiers") != nil else {
+                return Self.defaultHotkeyModifiers
+            }
+            return UInt(clamping: UserDefaults.standard.integer(forKey: "hotkeyModifiers"))
+        }
         set { UserDefaults.standard.set(Int(newValue), forKey: "hotkeyModifiers") }
     }
 
@@ -41,13 +57,29 @@ final class AppState {
         set { UserDefaults.standard.set(newValue, forKey: "pttEnabled") }
     }
 
+    /// Default push-to-talk hotkey: Option+Shift+T
+    private static let defaultPttKeyCode: UInt16 = 17 // "T" key
+    private static let defaultPttModifiers: UInt = UInt(
+        NSEvent.ModifierFlags.option.rawValue | NSEvent.ModifierFlags.shift.rawValue
+    )
+
     var pttKeyCode: UInt16 {
-        get { UInt16(clamping: UserDefaults.standard.integer(forKey: "pttKeyCode")) }
+        get {
+            guard UserDefaults.standard.object(forKey: "pttKeyCode") != nil else {
+                return Self.defaultPttKeyCode
+            }
+            return UInt16(clamping: UserDefaults.standard.integer(forKey: "pttKeyCode"))
+        }
         set { UserDefaults.standard.set(Int(newValue), forKey: "pttKeyCode") }
     }
 
     var pttModifiers: UInt {
-        get { UInt(clamping: UserDefaults.standard.integer(forKey: "pttModifiers")) }
+        get {
+            guard UserDefaults.standard.object(forKey: "pttModifiers") != nil else {
+                return Self.defaultPttModifiers
+            }
+            return UInt(clamping: UserDefaults.standard.integer(forKey: "pttModifiers"))
+        }
         set { UserDefaults.standard.set(Int(newValue), forKey: "pttModifiers") }
     }
 
@@ -86,25 +118,8 @@ final class AppState {
     private var hasSetup = false
     private var loadModelTask: Task<Void, Never>?
 
-    init() {
-        // Set default hotkey if not configured: Option+Shift+R
-        if UserDefaults.standard.object(forKey: "hotkeyKeyCode") == nil {
-            hotkeyKeyCode = 15 // "R" key
-            hotkeyModifiers = UInt(
-                NSEvent.ModifierFlags.option.rawValue |
-                NSEvent.ModifierFlags.shift.rawValue
-            )
-        }
-
-        // Set default push-to-talk hotkey if not configured: Option+Shift+T
-        if UserDefaults.standard.object(forKey: "pttKeyCode") == nil {
-            pttKeyCode = 17 // "T" key
-            pttModifiers = UInt(
-                NSEvent.ModifierFlags.option.rawValue |
-                NSEvent.ModifierFlags.shift.rawValue
-            )
-        }
-    }
+    // Defaults for hotkey and PTT are handled in the computed property getters,
+    // so no explicit init is needed to set them.
 
     // MARK: - Lifecycle
 
@@ -187,6 +202,15 @@ final class AppState {
 
         let model = selectedModel
         let task = Task {
+            defer {
+                // Always reset loading flags when the task ends, even on cancellation.
+                // This prevents a perpetual "Loading model…" state if the task is
+                // cancelled after the model was already loaded in the backend.
+                if Task.isCancelled {
+                    isModelLoading = false
+                    isModelDownloading = false
+                }
+            }
             do {
                 try await transcriptionService.loadModel(name: model) { [weak self] phase in
                     Task { @MainActor [weak self] in

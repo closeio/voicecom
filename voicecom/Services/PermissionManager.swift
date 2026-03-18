@@ -21,6 +21,8 @@ nonisolated final class PermissionManager: Sendable {
     func requestAccessibilityPermission() {
         if !AXIsProcessTrusted() {
             DispatchQueue.global(qos: .userInitiated).async {
+                // Use the string value directly to avoid Swift 6 concurrency warnings
+                // about the shared mutable kAXTrustedCheckOptionPrompt global.
                 let options = ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary
                 AXIsProcessTrustedWithOptions(options)
             }
@@ -29,7 +31,8 @@ nonisolated final class PermissionManager: Sendable {
 
     /// Open System Settings directly to the Accessibility pane.
     func openAccessibilitySettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+        // Modern macOS (Ventura+) uses the Privacy & Security > Accessibility path
+        if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
