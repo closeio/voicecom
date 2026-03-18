@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import ServiceManagement
 
 @Observable
 @MainActor
@@ -48,6 +49,21 @@ final class AppState {
     var pttModifiers: UInt {
         get { UInt(UserDefaults.standard.integer(forKey: "pttModifiers")) }
         set { UserDefaults.standard.set(Int(newValue), forKey: "pttModifiers") }
+    }
+
+    var launchAtLogin: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            do {
+                if newValue {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("[voicecom] Failed to \(newValue ? "enable" : "disable") launch at login: \(error)")
+            }
+        }
     }
 
     // MARK: - Services
