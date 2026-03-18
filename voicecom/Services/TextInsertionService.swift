@@ -8,6 +8,12 @@ final class TextInsertionService {
     /// The original clipboard items saved before the first paste in a burst.
     /// Stores all types (text, images, files, etc.) so the full clipboard is restored.
     private var savedPasteboardItems: [NSPasteboardItem]?
+    /// Monotonically increasing generation counter to detect stale restore callbacks.
+    private var pasteGeneration: UInt64 = 0
+
+    /// Maximum total byte size of clipboard data we'll save for restore.
+    /// Prevents holding very large clipboard contents (e.g. images) in memory.
+    private static let maxSavedClipboardBytes = 10 * 1024 * 1024 // 10 MB
 
     /// Insert text into the frontmost application by copying to clipboard and simulating Cmd+V.
     /// Preserves and restores the previous clipboard contents.
@@ -33,18 +39,14 @@ final class TextInsertionService {
         pasteWorkItem?.cancel()
         pasteWorkItem = nil
 
+        // Increment generation so any in-flight restore callbacks become stale
+        pasteGeneration &+= 1
+        let currentGeneration = pasteGeneration
+
         // Only save the original clipboard if we don't already have a saved copy
         // from a previous in-flight paste (avoids saving our own transcription text)
         if savedPasteboardItems == nil {
-            savedPasteboardItems = pasteboard.pasteboardItems?.map { item in
-                let copy = NSPasteboardItem()
-                for type in item.types {
-                    if let data = item.data(forType: type) {
-                        copy.setData(data, forType: type)
-                    }
-                }
-                return copy
-            }
+            savedPasteboardItems = Self.copyPasteboardItems(from: pasteboard)
         }
 
         // Set transcribed text
@@ -62,21 +64,48 @@ final class TextInsertionService {
 
             // Restore previous clipboard after giving the paste time to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                guard let self else { return }
+                // Check generation to ensure this callback isn't stale from a
+                // previous insertText call that was superseded.
+                guard self.pasteGeneration == currentGeneration else { return }
                 // Only restore if the clipboard hasn't been changed by the user
                 guard pasteboard.changeCount == changeCountAfterPaste else {
-                    self?.savedPasteboardItems = nil
+                    self.savedPasteboardItems = nil
                     return
                 }
                 pasteboard.clearContents()
                 if let items = previousItems, !items.isEmpty {
                     pasteboard.writeObjects(items)
                 }
-                self?.savedPasteboardItems = nil
+                self.savedPasteboardItems = nil
             }
         }
         pasteWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
         return true
+    }
+
+    /// Copies pasteboard items, skipping save entirely if total data exceeds the size limit.
+    private static func copyPasteboardItems(from pasteboard: NSPasteboard) -> [NSPasteboardItem]? {
+        guard let items = pasteboard.pasteboardItems else { return nil }
+        var totalBytes = 0
+        var copies: [NSPasteboardItem] = []
+        for item in items {
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    totalBytes += data.count
+                    if totalBytes > maxSavedClipboardBytes {
+                        // Clipboard is too large to save — skip restore entirely
+                        print("[voicecom] Clipboard data exceeds \(maxSavedClipboardBytes / 1024 / 1024) MB, skipping clipboard restore")
+                        return nil
+                    }
+                    copy.setData(data, forType: type)
+                }
+            }
+            copies.append(copy)
+        }
+        return copies
     }
 
     private func simulatePaste() {

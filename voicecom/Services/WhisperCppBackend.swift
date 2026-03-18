@@ -122,6 +122,9 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
             print("[voicecom] whisper.cpp model '\(name)' downloaded to \(modelFileURL.path)")
         }
 
+        // Bail early if the caller's task was cancelled during download
+        try Task.checkCancellation()
+
         // Download CoreML encoder model for ANE acceleration if not already cached.
         // whisper.cpp automatically loads this from alongside the .bin file.
         let coremlDirName = "\(name)-encoder.mlmodelc"
@@ -137,6 +140,9 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
             try? FileManager.default.removeItem(at: modelFileURL)
             throw TranscriptionError.modelDownloadFailed
         }
+
+        // Bail early if the caller's task was cancelled during CoreML download
+        try Task.checkCancellation()
 
         // Log whether CoreML encoder is available for this model
         let coremlAvailable = FileManager.default.fileExists(atPath: coremlDirURL.path)
@@ -168,6 +174,12 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
             throw TranscriptionError.modelLoadFailed
         }
 
+        // If cancelled after context was created, free it immediately instead of storing
+        if Task.isCancelled {
+            whisper_free(ctx)
+            throw CancellationError()
+        }
+
         storeContext(ctx, name: name)
 
         // Log diagnostics about hardware acceleration status
@@ -180,9 +192,6 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
             throw TranscriptionError.modelNotLoaded
         }
 
-        // Ensure we decrement the counter when done, even on failure
-        defer { releaseContextAfterTranscription() }
-
         // Run transcription on a background thread since whisper_full blocks.
         // `ctx` is safe to use here because unloadModel() waits for activeTranscriptionCount == 0.
         // OpaquePointer is not Sendable, so we use nonisolated(unsafe) to bridge it to the
@@ -193,9 +202,16 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
         let operation: @Sendable () throws -> String = {
             try Self.runTranscription(context: sendableCtx, audioBuffer: audio, language: lang)
         }
-        return try await Task.detached(priority: .userInitiated) {
-            try operation()
-        }.value
+        do {
+            let result = try await Task.detached(priority: .userInitiated) {
+                try operation()
+            }.value
+            releaseContextAfterTranscription()
+            return result
+        } catch {
+            releaseContextAfterTranscription()
+            throw error
+        }
     }
 
     /// Number of performance cores to use for whisper.cpp inference.
@@ -311,13 +327,14 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
 
     // MARK: - CoreML Encoder Download
 
-    /// URLSession configured with a generous timeout for large CoreML encoder downloads (up to ~1.2 GB).
-    private static let downloadSession: URLSession = {
+    /// Creates a URLSession configured with a generous timeout for large CoreML encoder downloads
+    /// (up to ~1.2 GB). The caller must invalidate the session after use.
+    private static func makeDownloadSession() -> URLSession {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForResource = 600 // 10 minutes for full download
         config.timeoutIntervalForRequest = 60   // 60s between data chunks
         return URLSession(configuration: config)
-    }()
+    }
 
     /// Downloads and unzips the CoreML encoder model for ANE acceleration.
     /// Failures are non-fatal — whisper.cpp falls back to CPU automatically.
@@ -329,8 +346,11 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
         }
         print("[voicecom] Downloading CoreML encoder for '\(name)' from \(coremlDownloadURL)")
 
+        let session = makeDownloadSession()
+        defer { session.finishTasksAndInvalidate() }
+
         do {
-            let (tempZipURL, coremlResponse) = try await downloadSession.download(from: coremlDownloadURL)
+            let (tempZipURL, coremlResponse) = try await session.download(from: coremlDownloadURL)
             guard let httpResp = coremlResponse as? HTTPURLResponse, httpResp.statusCode == 200 else {
                 let code = (coremlResponse as? HTTPURLResponse)?.statusCode ?? -1
                 print("[voicecom] CoreML encoder not available for '\(name)' (HTTP \(code)), using CPU fallback")

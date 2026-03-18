@@ -4,15 +4,6 @@ import SwiftUI
 struct voicecomApp: App {
     @State private var appState = AppState()
 
-    init() {
-        // Trigger setup immediately so the model loads at launch,
-        // rather than waiting for the user to open the menu bar popover.
-        let state = _appState.wrappedValue
-        Task { @MainActor in
-            await state.setup()
-        }
-    }
-
     var body: some Scene {
         MenuBarExtra {
             MenuBarView()
@@ -20,6 +11,12 @@ struct voicecomApp: App {
         } label: {
             Image(systemName: menuBarIconName)
                 .symbolRenderingMode(.hierarchical)
+                .task {
+                    // Trigger setup from the label view — it is rendered
+                    // immediately at launch, unlike the .window-style content
+                    // view which is only created when the popover opens.
+                    await appState.setup()
+                }
         }
         .menuBarExtraStyle(.window)
 
