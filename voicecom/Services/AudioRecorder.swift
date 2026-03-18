@@ -7,10 +7,15 @@ private final class RecorderDelegate: NSObject, AVAudioRecorderDelegate {
     }
 }
 
+/// Audio recorder that captures to a temp WAV file (16kHz, 16-bit PCM) and
+/// returns the audio as a `[Float]` buffer. All methods must be called from
+/// the main thread (enforced by `@MainActor` callers in `AppState`).
 final class AudioRecorder: @unchecked Sendable {
     private var audioRecorder: AVAudioRecorder?
     private var tempFileURL: URL?
     private let delegate = RecorderDelegate()
+
+    private static let tempFilePrefix = "voicecom_recording_"
 
     func startRecording() throws {
         // Stop any previous recording and clean up its temp file
@@ -23,8 +28,11 @@ final class AudioRecorder: @unchecked Sendable {
             tempFileURL = nil
         }
 
+        // Clean up any stale temp files from previous sessions (e.g. after a crash)
+        Self.cleanupStaleTempFiles()
+
         let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("voicecom_recording_\(UUID().uuidString).wav")
+        let fileURL = tempDir.appendingPathComponent("\(Self.tempFilePrefix)\(UUID().uuidString).wav")
 
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatLinearPCM),
@@ -121,6 +129,29 @@ final class AudioRecorder: @unchecked Sendable {
         vDSP_vlint(&inputCopy, &control, 1, &output, 1, vDSP_Length(outputCount), vDSP_Length(input.count))
 
         return output
+    }
+
+    /// Remove any stale voicecom temp recordings left behind by crashes.
+    private static func cleanupStaleTempFiles() {
+        let tempDir = FileManager.default.temporaryDirectory
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: tempDir,
+            includingPropertiesForKeys: nil
+        ) else { return }
+
+        for file in contents where file.lastPathComponent.hasPrefix(tempFilePrefix) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    deinit {
+        // Stop any active recording and clean up the temp file
+        if let recorder = audioRecorder {
+            recorder.stop()
+        }
+        if let url = tempFileURL {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 }
 

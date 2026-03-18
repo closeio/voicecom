@@ -121,14 +121,30 @@ struct MenuBarView: View {
     @ViewBuilder
     private var transcriptionCard: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Last transcription")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack {
+                Text("Last transcription")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(appState.lastTranscription, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Copy to clipboard")
+            }
 
             Text(appState.lastTranscription)
                 .font(.callout)
                 .lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
         }
         .padding(10)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))

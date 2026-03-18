@@ -2,8 +2,15 @@ import Foundation
 import LocalWhisper
 
 final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
-    private nonisolated(unsafe) var context: OpaquePointer? // whisper_context *
+    /// Lock protecting `context` and `loadedModel` from concurrent access.
+    /// We use a lock instead of an actor because `whisper_full` blocks for seconds
+    /// and we don't want to serialize model load/unload behind a long transcription.
+    private let lock = NSLock()
+    private var context: OpaquePointer? // whisper_context *
     private var loadedModel: String?
+    /// Tracks whether a transcription is currently using `context`.
+    /// `unloadModel()` waits for this to reach 0 before freeing.
+    private var activeTranscriptionCount = 0
 
     private static var modelsDirectory: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -32,8 +39,44 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
     /// HuggingFace base URL for whisper.cpp ggml model files.
     private static let modelBaseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 
+    // MARK: - Synchronous lock helpers (cannot use NSLock from async contexts)
+
+    /// Returns true if the model is already loaded with the given name.
+    private func isModelAlreadyLoaded(name: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return loadedModel == name && context != nil
+    }
+
+    /// Stores a newly created context under the lock.
+    private func storeContext(_ ctx: OpaquePointer, name: String) {
+        lock.lock()
+        context = ctx
+        loadedModel = name
+        lock.unlock()
+    }
+
+    /// Acquires the context pointer for transcription, incrementing the active count.
+    /// Returns nil if no model is loaded.
+    private func acquireContextForTranscription() -> OpaquePointer? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let ctx = context else { return nil }
+        activeTranscriptionCount += 1
+        return ctx
+    }
+
+    /// Releases the context after transcription completes.
+    private func releaseContextAfterTranscription() {
+        lock.lock()
+        activeTranscriptionCount -= 1
+        lock.unlock()
+    }
+
+    // MARK: - Public API
+
     func loadModel(name: String) async throws {
-        if loadedModel == name, context != nil { return }
+        if isModelAlreadyLoaded(name: name) { return }
 
         // Unload any previously loaded model
         unloadModel()
@@ -73,21 +116,27 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
             throw TranscriptionError.modelLoadFailed
         }
 
-        context = ctx
-        loadedModel = name
+        storeContext(ctx, name: name)
         print("[voicecom] whisper.cpp model '\(name)' loaded successfully")
     }
 
     func transcribe(audioBuffer: [Float]) async throws -> String {
-        guard let context else {
+        // Acquire the context pointer under the lock and mark as in-use
+        guard let ctx = acquireContextForTranscription() else {
             throw TranscriptionError.modelNotLoaded
         }
 
-        // Run transcription on a background thread since whisper_full blocks
-        nonisolated(unsafe) let ctx = context
+        // Ensure we decrement the counter when done, even on failure
+        defer { releaseContextAfterTranscription() }
+
+        // Run transcription on a background thread since whisper_full blocks.
+        // `ctx` is safe to use here because unloadModel() waits for activeTranscriptionCount == 0.
+        // OpaquePointer is not Sendable, so we use nonisolated(unsafe) to bridge it to the
+        // detached task. The activeTranscriptionCount ensures the pointer remains valid.
+        nonisolated(unsafe) let sendableCtx = ctx
         let audio = audioBuffer
         let operation: @Sendable () throws -> String = {
-            try Self.runTranscription(context: ctx, audioBuffer: audio)
+            try Self.runTranscription(context: sendableCtx, audioBuffer: audio)
         }
         return try await Task.detached(priority: .userInitiated) {
             try operation()
@@ -102,6 +151,9 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
         params.print_realtime = false
         params.print_timestamps = false
 
+        // Safety: params.language points into the "en" string literal's storage,
+        // which is valid for the entire duration of whisper_full since the literal
+        // has static lifetime.
         let result = "en".withCString { langPtr in
             params.language = langPtr
             return audioBuffer.withUnsafeBufferPointer { bufferPointer in
@@ -135,18 +187,25 @@ final class WhisperCppBackend: TranscriptionBackend, @unchecked Sendable {
     }
 
     func unloadModel() {
-        if let context {
-            whisper_free(context)
+        lock.lock()
+        // Wait for any active transcription to finish before freeing context
+        while activeTranscriptionCount > 0 {
+            lock.unlock()
+            Thread.sleep(forTimeInterval: 0.01)
+            lock.lock()
         }
+        let ctx = context
         context = nil
         loadedModel = nil
-    }
+        lock.unlock()
 
-    deinit {
-        if let context {
-            whisper_free(context)
+        if let ctx {
+            whisper_free(ctx)
         }
     }
+
+    // Note: No deinit needed — unloadModel() handles cleanup, and the backend
+    // lifetime is managed by TranscriptionService which calls unloadModel() before releasing.
 
     // MARK: - CoreML Encoder Download
 
