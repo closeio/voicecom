@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
@@ -103,6 +104,13 @@ struct GeneralSettingsTab: View {
                 Text("Hold the shortcut to record, release to stop and transcribe.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Startup") {
+                Toggle("Launch at Login", isOn: Binding(
+                    get: { appState.launchAtLogin },
+                    set: { appState.launchAtLogin = $0 }
+                ))
             }
         }
         .formStyle(.grouped)
