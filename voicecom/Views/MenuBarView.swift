@@ -198,7 +198,10 @@ struct MenuBarView: View {
 
             // Quit button
             Button {
-                NSApplication.shared.terminate(nil)
+                Task {
+                    await appState.shutdown()
+                    NSApplication.shared.terminate(nil)
+                }
             } label: {
                 Image(systemName: "power")
                     .font(.system(size: 13))
@@ -211,11 +214,11 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private var modelChip: some View {
-        if appState.isModelDownloading {
+        if appState.isModelLoading {
             HStack(spacing: 4) {
                 ProgressView()
                     .controlSize(.mini)
-                Text("Downloading…")
+                Text(appState.isModelDownloading ? "Downloading…" : "Loading…")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

@@ -1,59 +1,85 @@
 import AppKit
 import CoreGraphics
 
+@MainActor
 final class TextInsertionService {
-    /// Tracks the pending clipboard restore so we can cancel it if a new paste arrives.
-    private var restoreWorkItem: DispatchWorkItem?
-    /// The original clipboard contents saved before the first paste in a burst.
-    private var savedClipboardContents: String?
+    /// Tracks the pending paste+restore so we can cancel it if a new paste arrives.
+    private var pasteWorkItem: DispatchWorkItem?
+    /// The original clipboard items saved before the first paste in a burst.
+    /// Stores all types (text, images, files, etc.) so the full clipboard is restored.
+    private var savedPasteboardItems: [NSPasteboardItem]?
 
     /// Insert text into the frontmost application by copying to clipboard and simulating Cmd+V.
     /// Preserves and restores the previous clipboard contents.
     ///
-    /// If called again before the previous restore completes, the pending restore is
+    /// If called again before the previous restore completes, the pending paste is
     /// cancelled and the original clipboard contents are preserved across the entire burst.
-    func insertText(_ text: String) {
+    ///
+    /// Returns `false` if accessibility permission is not granted (paste cannot be simulated).
+    /// In that case the transcription text remains on the clipboard for manual pasting.
+    @discardableResult
+    func insertText(_ text: String) -> Bool {
+        guard AXIsProcessTrusted() else {
+            print("[voicecom] Accessibility permission not granted — text copied to clipboard for manual paste")
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            return false
+        }
+
         let pasteboard = NSPasteboard.general
 
-        // Cancel any pending clipboard restore from a previous paste
-        restoreWorkItem?.cancel()
-        restoreWorkItem = nil
+        // Cancel any pending paste+restore from a previous call
+        pasteWorkItem?.cancel()
+        pasteWorkItem = nil
 
         // Only save the original clipboard if we don't already have a saved copy
         // from a previous in-flight paste (avoids saving our own transcription text)
-        if savedClipboardContents == nil {
-            savedClipboardContents = pasteboard.string(forType: .string)
+        if savedPasteboardItems == nil {
+            savedPasteboardItems = pasteboard.pasteboardItems?.map { item in
+                let copy = NSPasteboardItem()
+                for type in item.types {
+                    if let data = item.data(forType: type) {
+                        copy.setData(data, forType: type)
+                    }
+                }
+                return copy
+            }
         }
 
         // Set transcribed text
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
 
-        let previousContents = savedClipboardContents
+        let changeCountAfterPaste = pasteboard.changeCount
+        let previousItems = savedPasteboardItems
 
-        // Simulate Cmd+V after a short delay to ensure pasteboard is ready
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Use a single cancellable work item for the entire paste+restore sequence.
+        // This prevents double-paste when insertText is called rapidly — cancelling
+        // the work item before it fires skips both the paste and the restore.
+        let workItem = DispatchWorkItem { [weak self] in
             self?.simulatePaste()
 
             // Restore previous clipboard after giving the paste time to complete
-            let workItem = DispatchWorkItem { [weak self] in
-                pasteboard.clearContents()
-                if let previous = previousContents {
-                    pasteboard.setString(previous, forType: .string)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                // Only restore if the clipboard hasn't been changed by the user
+                guard pasteboard.changeCount == changeCountAfterPaste else {
+                    self?.savedPasteboardItems = nil
+                    return
                 }
-                self?.savedClipboardContents = nil
+                pasteboard.clearContents()
+                if let items = previousItems, !items.isEmpty {
+                    pasteboard.writeObjects(items)
+                }
+                self?.savedPasteboardItems = nil
             }
-            self?.restoreWorkItem = workItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
         }
+        pasteWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
+        return true
     }
 
     private func simulatePaste() {
-        // Check accessibility permission first
-        guard AXIsProcessTrusted() else {
-            print("[voicecom] Accessibility permission not granted — cannot simulate paste")
-            return
-        }
 
         let vKeyCode: CGKeyCode = 9 // "V" key
 

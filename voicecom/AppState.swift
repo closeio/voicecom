@@ -9,8 +9,8 @@ final class AppState {
     var isRecording = false
     var isTranscribing = false
     var isModelLoaded = false
+    var isModelLoading = false
     var isModelDownloading = false
-    var modelDownloadProgress: Double = 0.0
     var statusMessage = "Ready"
     var lastTranscription = ""
     var errorMessage: String?
@@ -22,12 +22,12 @@ final class AppState {
     }
 
     var hotkeyKeyCode: UInt16 {
-        get { UInt16(UserDefaults.standard.integer(forKey: "hotkeyKeyCode")) }
+        get { UInt16(clamping: UserDefaults.standard.integer(forKey: "hotkeyKeyCode")) }
         set { UserDefaults.standard.set(Int(newValue), forKey: "hotkeyKeyCode") }
     }
 
     var hotkeyModifiers: UInt {
-        get { UInt(UserDefaults.standard.integer(forKey: "hotkeyModifiers")) }
+        get { UInt(clamping: UserDefaults.standard.integer(forKey: "hotkeyModifiers")) }
         set { UserDefaults.standard.set(Int(newValue), forKey: "hotkeyModifiers") }
     }
 
@@ -42,13 +42,20 @@ final class AppState {
     }
 
     var pttKeyCode: UInt16 {
-        get { UInt16(UserDefaults.standard.integer(forKey: "pttKeyCode")) }
+        get { UInt16(clamping: UserDefaults.standard.integer(forKey: "pttKeyCode")) }
         set { UserDefaults.standard.set(Int(newValue), forKey: "pttKeyCode") }
     }
 
     var pttModifiers: UInt {
-        get { UInt(UserDefaults.standard.integer(forKey: "pttModifiers")) }
+        get { UInt(clamping: UserDefaults.standard.integer(forKey: "pttModifiers")) }
         set { UserDefaults.standard.set(Int(newValue), forKey: "pttModifiers") }
+    }
+
+    /// Language code for transcription (e.g. "en", "auto").
+    /// Use "auto" to let Whisper detect the language automatically.
+    var transcriptionLanguage: String {
+        get { UserDefaults.standard.string(forKey: "transcriptionLanguage") ?? "en" }
+        set { UserDefaults.standard.set(newValue, forKey: "transcriptionLanguage") }
     }
 
     var launchAtLogin: Bool {
@@ -105,7 +112,17 @@ final class AppState {
         guard !hasSetup else { return }
         hasSetup = true
 
-         permissionManager.requestAccessibilityPermission()
+        // Clean up stale temp recordings from previous sessions once at launch
+        AudioRecorder.cleanupStaleTempFiles()
+
+        permissionManager.requestAccessibilityPermission()
+
+        // Auto-stop recording if max duration is reached
+        audioRecorder.onMaxDurationReached = { [weak self] in
+            Task { @MainActor in
+                await self?.stopRecordingIfNeeded()
+            }
+        }
 
         hotkeyManager.onToggle = { [weak self] in
             Task { @MainActor in
@@ -154,32 +171,50 @@ final class AppState {
     }
 
     /// Load a model. Uses local cache if available, downloads if not.
-    /// Cancels any in-flight load before starting a new one.
+    /// Cancels any in-flight load and waits for it to finish before starting a new one.
+    /// No-op if recording or transcribing to avoid pulling the model out mid-operation.
     func loadModel() async {
-        loadModelTask?.cancel()
+        guard !isRecording, !isTranscribing else { return }
 
-        isModelDownloading = true
+        loadModelTask?.cancel()
+        await loadModelTask?.value
+
+        isModelLoading = true
+        isModelDownloading = false
         isModelLoaded = false
-        statusMessage = "Loading model..."
+        statusMessage = "Loading model…"
         errorMessage = nil
 
         let model = selectedModel
         let task = Task {
             do {
-                try await transcriptionService.loadModel(name: model)
+                try await transcriptionService.loadModel(name: model) { [weak self] phase in
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        switch phase {
+                        case .downloading:
+                            self.isModelDownloading = true
+                            self.statusMessage = "Downloading model…"
+                        case .loading:
+                            self.isModelDownloading = false
+                            self.statusMessage = "Loading model…"
+                        }
+                    }
+                }
                 guard !Task.isCancelled else { return }
                 isModelLoaded = true
+                isModelLoading = false
                 isModelDownloading = false
                 statusMessage = "Ready"
             } catch {
                 guard !Task.isCancelled else { return }
+                isModelLoading = false
                 isModelDownloading = false
                 errorMessage = "Model failed: \(error.localizedDescription)"
                 statusMessage = "Model not loaded"
             }
         }
         loadModelTask = task
-        await task.value
     }
 
     private var isToggling = false
@@ -231,11 +266,19 @@ final class AppState {
         await stopRecordingAndTranscribe()
     }
 
+    /// Cleanly release the loaded model before the process exits.
+    func shutdown() async {
+        loadModelTask?.cancel()
+        await loadModelTask?.value
+        await transcriptionService.unloadModel()
+        isModelLoaded = false
+    }
+
     // MARK: - Private
 
     private func startRecording() async {
-        guard isModelLoaded else {
-            statusMessage = "Model not loaded yet"
+        guard isModelLoaded, !isTranscribing else {
+            if !isModelLoaded { statusMessage = "Model not loaded yet" }
             return
         }
 
@@ -275,18 +318,23 @@ final class AppState {
         }
 
         do {
-            let text = try await transcriptionService.transcribe(audioBuffer: audioBuffer)
+            let text = try await transcriptionService.transcribe(audioBuffer: audioBuffer, language: transcriptionLanguage)
             lastTranscription = text
             isTranscribing = false
 
             if !text.isEmpty {
                 statusMessage = "Pasting..."
                 print("[voicecom] Transcription result: \(text)")
-                textInsertionService.insertText(text)
-                // Delay resetting status so the user can see "Pasting..."
-                // (insertText is asynchronous — the paste happens after ~0.1s)
-                try? await Task.sleep(for: .milliseconds(300))
-                statusMessage = "Ready"
+                let pasted = textInsertionService.insertText(text)
+                if pasted {
+                    // Delay resetting status so the user can see "Pasting..."
+                    // (insertText is asynchronous — the paste happens after ~0.1s)
+                    try? await Task.sleep(for: .milliseconds(300))
+                    statusMessage = "Ready"
+                } else {
+                    statusMessage = "Ready"
+                    errorMessage = "Accessibility denied — text copied to clipboard"
+                }
             } else {
                 statusMessage = "Ready"
                 errorMessage = "No speech detected"

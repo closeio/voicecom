@@ -62,13 +62,6 @@ class HotkeyRecorderNSView: NSView {
         super.removeFromSuperview()
     }
 
-    override func keyDown(with event: NSEvent) {
-        let relevantModifiers: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
-        let modifiers = event.modifierFlags.intersection(relevantModifiers)
-
-        // Require at least one modifier key
-        if !modifiers.isEmpty {
-            onKeyRecorded?(event.keyCode, modifiers)
-        }
-    }
+    // keyDown is intentionally not overridden — the local event monitor handles
+    // all key capture and consumes the event so it doesn't propagate to other monitors.
 }

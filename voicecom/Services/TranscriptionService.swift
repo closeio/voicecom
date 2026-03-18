@@ -1,6 +1,6 @@
 import Foundation
 
-final class TranscriptionService: @unchecked Sendable {
+nonisolated final class TranscriptionService: @unchecked Sendable {
     /// Lock protecting `backend` from concurrent access.
     private let lock = NSLock()
     private var backend: WhisperCppBackend?
@@ -20,14 +20,14 @@ final class TranscriptionService: @unchecked Sendable {
         try await WhisperCppBackend.fetchAvailableModels()
     }
 
-    func loadModel(name: String) async throws {
+    func loadModel(name: String, onPhaseChange: (@Sendable (ModelLoadPhase) -> Void)? = nil) async throws {
         let backend = resolveBackend()
-        try await backend.loadModel(name: name)
+        try await backend.loadModel(name: name, onPhaseChange: onPhaseChange)
     }
 
-    func transcribe(audioBuffer: [Float]) async throws -> String {
+    func transcribe(audioBuffer: [Float], language: String = "en") async throws -> String {
         let backend = try getBackendForTranscription()
-        return try await backend.transcribe(audioBuffer: audioBuffer)
+        return try await backend.transcribe(audioBuffer: audioBuffer, language: language)
     }
 
     /// Reads the current backend under the lock, synchronously.
@@ -41,12 +41,22 @@ final class TranscriptionService: @unchecked Sendable {
         return backend
     }
 
-    func unloadModel() {
+    func unloadModel() async {
+        let b = extractAndClearBackend()
+        if let b {
+            // Run on a non-cooperative thread since unloadModel() may block
+            await Task.detached(priority: .userInitiated) { b.unloadModel() }.value
+        }
+    }
+
+    /// Extracts and nils the backend reference under the lock.
+    /// Separate sync method so NSLock is not used from an async context.
+    private func extractAndClearBackend() -> WhisperCppBackend? {
         lock.lock()
+        defer { lock.unlock() }
         let b = backend
         backend = nil
-        lock.unlock()
-        b?.unloadModel()
+        return b
     }
 }
 

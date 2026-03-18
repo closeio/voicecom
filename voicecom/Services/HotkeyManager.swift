@@ -167,6 +167,7 @@ final class HotkeyManager {
         unregisterPushToTalk()
     }
 
-    // Note: deinit is not needed because HotkeyManager lives for the app lifetime
-    // and monitors are cleaned up via unregister() called by AppState.
+    // Note: No deinit — HotkeyManager is owned by AppState which lives for the
+    // app lifetime. NSEvent monitors cannot be removed from a nonisolated deinit
+    // on a @MainActor class due to Swift 6 strict concurrency rules.
 }

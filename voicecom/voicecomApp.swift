@@ -5,7 +5,9 @@ struct voicecomApp: App {
     @State private var appState = AppState()
 
     init() {
-        let state = appState
+        // Trigger setup immediately so the model loads at launch,
+        // rather than waiting for the user to open the menu bar popover.
+        let state = _appState.wrappedValue
         Task { @MainActor in
             await state.setup()
         }
@@ -32,6 +34,8 @@ struct voicecomApp: App {
             return "waveform.circle.fill"
         } else if appState.isModelDownloading {
             return "arrow.down.circle"
+        } else if appState.isModelLoading {
+            return "circle.dashed"
         } else if appState.isModelLoaded {
             return "mic.fill"
         } else {
@@ -39,3 +43,4 @@ struct voicecomApp: App {
         }
     }
 }
+

@@ -20,7 +20,10 @@ struct SettingsView: View {
         }
         .frame(width: 480, height: 540)
         .onAppear {
-            if let window = NSApp.windows.first(where: { $0.isVisible }) {
+            // Target only the Settings window by its known identifier
+            if let window = NSApp.windows.first(where: {
+                $0.identifier?.rawValue == "com_apple_SwiftUI_Settings_window"
+            }) {
                 window.level = .floating
             }
         }
@@ -58,9 +61,10 @@ struct GeneralSettingsTab: View {
                             Text(model).tag(model)
                         }
                     }
+                    .disabled(appState.isRecording || appState.isTranscribing)
                 }
 
-                if appState.isModelDownloading {
+                if appState.isModelLoading {
                     ProgressView("Downloading model…")
                         .progressViewStyle(.linear)
                 }
@@ -69,6 +73,28 @@ struct GeneralSettingsTab: View {
                     Label("Model loaded", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 }
+
+                Picker("Language", selection: Binding(
+                    get: { appState.transcriptionLanguage },
+                    set: { appState.transcriptionLanguage = $0 }
+                )) {
+                    Text("Auto-detect").tag("auto")
+                    Text("English").tag("en")
+                    Text("Spanish").tag("es")
+                    Text("French").tag("fr")
+                    Text("German").tag("de")
+                    Text("Italian").tag("it")
+                    Text("Portuguese").tag("pt")
+                    Text("Dutch").tag("nl")
+                    Text("Japanese").tag("ja")
+                    Text("Chinese").tag("zh")
+                    Text("Korean").tag("ko")
+                    Text("Russian").tag("ru")
+                }
+
+                Text("Use \"Auto-detect\" with multilingual models (e.g. ggml-small, ggml-large). English-only models (.en) always transcribe in English.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Toggle Recording Shortcut") {
@@ -261,7 +287,7 @@ struct PermissionsSettingsTab: View {
         .task {
             refreshPermissions()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
+                try? await Task.sleep(for: .seconds(5))
                 guard !Task.isCancelled else { break }
                 refreshPermissions()
             }
