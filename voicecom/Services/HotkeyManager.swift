@@ -1,5 +1,9 @@
 import AppKit
 
+/// Manages global and local keyboard event monitors for toggle and push-to-talk hotkeys.
+/// All NSEvent monitor callbacks deliver on the main thread, so this class is
+/// `@MainActor`-isolated for safe access to its mutable state.
+@MainActor
 final class HotkeyManager {
     // MARK: - Toggle mode callbacks
     var onToggle: (() -> Void)?
@@ -9,16 +13,16 @@ final class HotkeyManager {
     var onPushToTalkUp: (() -> Void)?
 
     // MARK: - Toggle hotkey state
-    private nonisolated(unsafe) var globalMonitor: Any?
-    private nonisolated(unsafe) var localMonitor: Any?
+    private var globalMonitor: Any?
+    private var localMonitor: Any?
     private var registeredKeyCode: UInt16 = 0
     private var registeredModifiers: NSEvent.ModifierFlags = []
 
     // MARK: - Push-to-talk hotkey state
-    private nonisolated(unsafe) var pttGlobalKeyDownMonitor: Any?
-    private nonisolated(unsafe) var pttGlobalKeyUpMonitor: Any?
-    private nonisolated(unsafe) var pttLocalKeyDownMonitor: Any?
-    private nonisolated(unsafe) var pttLocalKeyUpMonitor: Any?
+    private var pttGlobalKeyDownMonitor: Any?
+    private var pttGlobalKeyUpMonitor: Any?
+    private var pttLocalKeyDownMonitor: Any?
+    private var pttLocalKeyUpMonitor: Any?
     private var pttKeyCode: UInt16 = 0
     private var pttModifiers: NSEvent.ModifierFlags = []
     private var pttEnabled = false
@@ -163,12 +167,6 @@ final class HotkeyManager {
         unregisterPushToTalk()
     }
 
-    deinit {
-        if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
-        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
-        if let pttGlobalKeyDownMonitor { NSEvent.removeMonitor(pttGlobalKeyDownMonitor) }
-        if let pttGlobalKeyUpMonitor { NSEvent.removeMonitor(pttGlobalKeyUpMonitor) }
-        if let pttLocalKeyDownMonitor { NSEvent.removeMonitor(pttLocalKeyDownMonitor) }
-        if let pttLocalKeyUpMonitor { NSEvent.removeMonitor(pttLocalKeyUpMonitor) }
-    }
+    // Note: deinit is not needed because HotkeyManager lives for the app lifetime
+    // and monitors are cleaned up via unregister() called by AppState.
 }

@@ -1,9 +1,13 @@
 import Foundation
 
 final class TranscriptionService: @unchecked Sendable {
+    /// Lock protecting `backend` from concurrent access.
+    private let lock = NSLock()
     private var backend: WhisperCppBackend?
 
     private func resolveBackend() -> WhisperCppBackend {
+        lock.lock()
+        defer { lock.unlock() }
         if let backend {
             return backend
         }
@@ -22,15 +26,27 @@ final class TranscriptionService: @unchecked Sendable {
     }
 
     func transcribe(audioBuffer: [Float]) async throws -> String {
-        guard let backend else {
-            throw TranscriptionError.modelNotLoaded
-        }
+        let backend = try getBackendForTranscription()
         return try await backend.transcribe(audioBuffer: audioBuffer)
     }
 
+    /// Reads the current backend under the lock, synchronously.
+    /// Extracted to a non-async method so NSLock can be used safely.
+    private func getBackendForTranscription() throws -> WhisperCppBackend {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let backend else {
+            throw TranscriptionError.modelNotLoaded
+        }
+        return backend
+    }
+
     func unloadModel() {
-        backend?.unloadModel()
+        lock.lock()
+        let b = backend
         backend = nil
+        lock.unlock()
+        b?.unloadModel()
     }
 }
 

@@ -77,6 +77,7 @@ final class AppState {
     var availableModels: [String] = []
 
     private var hasSetup = false
+    private var loadModelTask: Task<Void, Never>?
 
     init() {
         // Set default hotkey if not configured: Option+Shift+R
@@ -153,22 +154,32 @@ final class AppState {
     }
 
     /// Load a model. Uses local cache if available, downloads if not.
+    /// Cancels any in-flight load before starting a new one.
     func loadModel() async {
+        loadModelTask?.cancel()
+
         isModelDownloading = true
         isModelLoaded = false
         statusMessage = "Loading model..."
         errorMessage = nil
 
-        do {
-            try await transcriptionService.loadModel(name: selectedModel)
-            isModelLoaded = true
-            isModelDownloading = false
-            statusMessage = "Ready"
-        } catch {
-            isModelDownloading = false
-            errorMessage = "Model failed: \(error.localizedDescription)"
-            statusMessage = "Model not loaded"
+        let model = selectedModel
+        let task = Task {
+            do {
+                try await transcriptionService.loadModel(name: model)
+                guard !Task.isCancelled else { return }
+                isModelLoaded = true
+                isModelDownloading = false
+                statusMessage = "Ready"
+            } catch {
+                guard !Task.isCancelled else { return }
+                isModelDownloading = false
+                errorMessage = "Model failed: \(error.localizedDescription)"
+                statusMessage = "Model not loaded"
+            }
         }
+        loadModelTask = task
+        await task.value
     }
 
     private var isToggling = false
