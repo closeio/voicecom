@@ -16,7 +16,7 @@ A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and t
 
 | Menu bar popover | Settings — General | Settings — Permissions |
 |---|---|---|
-| ![Menu bar popover](img/Screenshot%202026-03-12%20at%2017.49.47.png) | ![Settings — General](img/Screenshot%202026-03-12%20at%2017.50.09.png) | ![Settings — Permissions](img/Screenshot%202026-03-12%20at%2017.50.16.png) |
+| ![Menu bar popover](img/Screenshot%202026-03-12%20at%2017.49.47.png) | ![Settings — General](img/Screenshot%202026-03-18%20at%2016.29.12.png) | ![Settings — Permissions](img/Screenshot%202026-03-12%20at%2017.50.16.png) |
 
 ## Requirements
 
