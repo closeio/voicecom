@@ -6,10 +6,12 @@ A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and t
 
 - **Menu bar app** -- lives in your menu bar, works system-wide with no dock icon
 - **Two input modes** -- toggle recording (press to start, press to stop) or push-to-talk (hold to record, release to transcribe)
-- **whisper.cpp transcription** -- on-device inference via GGML with CPU + Accelerate and optional CoreML encoder for ANE acceleration
+- **Hardware-accelerated transcription** -- on-device whisper.cpp inference with Metal GPU acceleration, CPU + Accelerate, and optional CoreML encoder for ANE
 - **Multiple model sizes** -- from tiny to large-v3, downloaded automatically on first use
-- **Automatic text insertion** -- transcribed text is pasted directly into the frontmost app
+- **Language selection** -- choose a transcription language or use auto-detect with multilingual models
+- **Automatic text insertion** -- transcribed text is pasted directly into the frontmost app (full clipboard save/restore)
 - **Configurable hotkeys** -- set your own keyboard shortcuts for toggle and push-to-talk
+- **Recording safety** -- automatic stop after 5 minutes to prevent runaway recordings
 - **Fully offline** -- models run locally, no network required after initial download
 
 ## Screenshots
@@ -55,7 +57,15 @@ Shortcuts can be changed in Settings (Cmd+,).
 
 ## Transcription
 
-voicecom uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for on-device transcription. The default model is `ggml-small`. Models are downloaded from HuggingFace on first use and cached in `~/Library/Application Support/voicecom/models/whispercpp/`. When available, a CoreML encoder is also downloaded for ANE acceleration (falls back to CPU automatically).
+voicecom uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for on-device transcription. The default model is `ggml-small`. Models are downloaded from HuggingFace on first use and cached in `~/Library/Application Support/voicecom/models/whispercpp/`.
+
+Hardware acceleration is layered for maximum performance:
+- **Metal GPU** -- accelerates the decoder via the ggml Metal backend (enabled with flash attention)
+- **CoreML encoder** -- downloaded alongside the model for ANE acceleration (falls back to CPU automatically)
+- **Accelerate** -- used for CPU-side BLAS operations
+- **Performance cores only** -- inference threads are pinned to P-cores to avoid latency from E-cores
+
+You can select a transcription language in Settings (General tab). Use "Auto-detect" with multilingual models (e.g. `ggml-small`, `ggml-large`). English-only models (`.en` suffix) always transcribe in English regardless of this setting.
 
 ## Building from Source
 
@@ -124,7 +134,8 @@ voicecom/
     HotkeyRecorderView.swift     # Keyboard shortcut capture widget
 LocalWhisper/                # Local SPM package wrapping vendored whisper.cpp
   include/                   # Public C headers + module.modulemap
+  MetalObjC/                 # Metal backend ObjC files (compiled without ARC)
   vendor/                    # whisper.cpp source (git submodule)
-  Package.swift              # Builds whisper.cpp for Apple platforms
+  Package.swift              # Builds whisper.cpp for Apple platforms (CPU + Metal + CoreML)
 ```
 
