@@ -238,6 +238,7 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
         params.print_progress = false
         params.print_realtime = false
         params.print_timestamps = false
+        params.suppress_nst = true
 
         let result = language.withCString { langPtr in
             params.language = langPtr
@@ -262,10 +263,21 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Strip emojis and other non-text symbols that Whisper can hallucinate
-        return raw.unicodeScalars
-            .filter { !$0.properties.isEmoji || $0.isASCII }
-            .map { Character($0) }
+        // Strip Whisper hallucination markers in brackets (e.g. [Música], [Music], [BLANK_AUDIO])
+        let deBracketed = raw.replacingOccurrences(of: "\\[[^\\]]*\\]", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip emojis that Whisper can hallucinate while preserving valid symbols
+        // like ©, ®, ™ that have isEmoji but are legitimate text characters.
+        return deBracketed.unicodeScalars
+            .filter { scalar in
+                if scalar.isASCII { return true }
+                if !scalar.properties.isEmoji { return true }
+                // Keep text-like symbols that Unicode marks as emoji but are
+                // commonly used in dictated/written text (©, ®, ™, etc.)
+                if !scalar.properties.isEmojiPresentation { return true }
+                return false
+            }
             .map { String($0) }
             .joined()
             .trimmingCharacters(in: .whitespacesAndNewlines)

@@ -117,6 +117,8 @@ final class AppState {
 
     private var hasSetup = false
     private var loadModelTask: Task<Void, Never>?
+    /// Generation counter for model loads — used to detect stale onPhaseChange callbacks.
+    private var loadModelGeneration: UInt64 = 0
 
     // Defaults for hotkey and PTT are handled in the computed property getters,
     // so no explicit init is needed to set them.
@@ -194,6 +196,7 @@ final class AppState {
         loadModelTask?.cancel()
         await loadModelTask?.value
 
+        loadModelGeneration &+= 1
         isModelLoading = true
         isModelDownloading = false
         isModelLoaded = false
@@ -212,9 +215,10 @@ final class AppState {
                 }
             }
             do {
-                try await transcriptionService.loadModel(name: model) { [weak self] phase in
+                try await transcriptionService.loadModel(name: model) { [weak self, generation = self.loadModelGeneration] phase in
                     Task { @MainActor [weak self] in
-                        guard let self else { return }
+                        // Check generation to discard stale callbacks from cancelled loads
+                        guard let self, self.loadModelGeneration == generation else { return }
                         switch phase {
                         case .downloading:
                             self.isModelDownloading = true
@@ -292,6 +296,9 @@ final class AppState {
 
     /// Cleanly release the loaded model before the process exits.
     func shutdown() async {
+        // Unregister hotkeys first to prevent callbacks during teardown
+        hotkeyManager.unregister()
+
         loadModelTask?.cancel()
         await loadModelTask?.value
         await transcriptionService.unloadModel()

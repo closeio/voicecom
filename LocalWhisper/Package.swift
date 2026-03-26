@@ -57,6 +57,7 @@ let package = Package(
                 "vendor/.dockerignore",
 
                 // Directories we don't need
+                "vendor/ci",
                 "vendor/cmake",
                 "vendor/models",
                 "vendor/samples",
@@ -90,6 +91,7 @@ let package = Package(
                 "vendor/ggml/src/ggml-hip",
                 "vendor/ggml/src/ggml-musa",
                 "vendor/ggml/src/ggml-opencl",
+                "vendor/ggml/src/ggml-openvino",
                 "vendor/ggml/src/ggml-rpc",
                 "vendor/ggml/src/ggml-sycl",
                 "vendor/ggml/src/ggml-virtgpu",
@@ -153,6 +155,9 @@ let package = Package(
                 "vendor/ggml/src/ggml-cpu/arch/arm/repack.cpp",
                 "vendor/ggml/src/ggml-cpu/arch/arm/cpu-feats.cpp",
 
+                // --- llamafile BLAS (optimized matrix multiply) ---
+                "vendor/ggml/src/ggml-cpu/llamafile/sgemm.cpp",
+
                 // --- GGML Metal backend (GPU acceleration, C++ files only) ---
                 "vendor/ggml/src/ggml-metal/ggml-metal.cpp",
                 "vendor/ggml/src/ggml-metal/ggml-metal-device.cpp",
@@ -175,6 +180,7 @@ let package = Package(
                 .headerSearchPath("vendor/ggml/include"),
                 .headerSearchPath("vendor/ggml/src"),
                 .headerSearchPath("vendor/ggml/src/ggml-cpu"),
+                .headerSearchPath("vendor/ggml/src/ggml-cpu/llamafile"),
                 .headerSearchPath("vendor/ggml/src/ggml-metal"),
                 .headerSearchPath("vendor/src"),
 
@@ -186,7 +192,7 @@ let package = Package(
                 .define("GGML_USE_METAL"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
-                .define("WHISPER_VERSION", to: "\"1.8.3\""),
+                .define("WHISPER_VERSION", to: "\"1.8.4\""),
                 .define("GGML_VERSION", to: "\"0.0.0\""),
                 .define("GGML_COMMIT", to: "\"unknown\""),
                 .define("_DARWIN_C_SOURCE"),
@@ -196,6 +202,7 @@ let package = Package(
                 .headerSearchPath("vendor/ggml/include"),
                 .headerSearchPath("vendor/ggml/src"),
                 .headerSearchPath("vendor/ggml/src/ggml-cpu"),
+                .headerSearchPath("vendor/ggml/src/ggml-cpu/llamafile"),
                 .headerSearchPath("vendor/ggml/src/ggml-metal"),
                 .headerSearchPath("vendor/src"),
 
@@ -206,7 +213,7 @@ let package = Package(
                 .define("GGML_USE_METAL"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
-                .define("WHISPER_VERSION", to: "\"1.8.3\""),
+                .define("WHISPER_VERSION", to: "\"1.8.4\""),
                 .define("GGML_VERSION", to: "\"0.0.0\""),
                 .define("GGML_COMMIT", to: "\"unknown\""),
                 .define("_DARWIN_C_SOURCE"),

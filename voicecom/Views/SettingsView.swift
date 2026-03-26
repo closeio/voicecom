@@ -53,6 +53,10 @@ struct GeneralSettingsTab: View {
                         set: { newValue in
                             if newValue != appState.selectedModel {
                                 appState.selectedModel = newValue
+                                // English-only models can only transcribe English
+                                if newValue.hasSuffix(".en") && appState.transcriptionLanguage != "en" {
+                                    appState.transcriptionLanguage = "en"
+                                }
                                 Task { await appState.loadModel() }
                             }
                         }
@@ -76,7 +80,17 @@ struct GeneralSettingsTab: View {
 
                 Picker("Language", selection: Binding(
                     get: { appState.transcriptionLanguage },
-                    set: { appState.transcriptionLanguage = $0 }
+                    set: { newValue in
+                        appState.transcriptionLanguage = newValue
+                        // Auto-switch to multilingual model when non-English language selected
+                        if newValue != "en" && appState.selectedModel.hasSuffix(".en") {
+                            let multilingual = String(appState.selectedModel.dropLast(3))
+                            if appState.availableModels.contains(multilingual) {
+                                appState.selectedModel = multilingual
+                                Task { await appState.loadModel() }
+                            }
+                        }
+                    }
                 )) {
                     Text("Auto-detect").tag("auto")
                     Text("English").tag("en")
@@ -120,7 +134,8 @@ struct GeneralSettingsTab: View {
                         label: "Hold to Record",
                         description: pttHotkeyDescription,
                         isRecording: $isRecordingPTTHotkey,
-                        defaultHint: "Default: ⌥⇧T (Option + Shift + T)",
+                        defaultHint: "Default: ⌥⇧T (Option + Shift + T). Single key (e.g. F5) also works.",
+                        requireModifiers: false,
                         onRecord: { keyCode, modifiers in
                             appState.updatePushToTalkHotkey(keyCode: keyCode, modifiers: modifiers.rawValue)
                         }
@@ -151,6 +166,7 @@ struct GeneralSettingsTab: View {
         description: String,
         isRecording: Binding<Bool>,
         defaultHint: String,
+        requireModifiers: Bool = true,
         onRecord: @escaping (UInt16, NSEvent.ModifierFlags) -> Void
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -159,7 +175,7 @@ struct GeneralSettingsTab: View {
                 Spacer()
 
                 if isRecording.wrappedValue {
-                    HotkeyRecorderView { keyCode, modifiers in
+                    HotkeyRecorderView(requireModifiers: requireModifiers) { keyCode, modifiers in
                         onRecord(keyCode, modifiers)
                         isRecording.wrappedValue = false
                     }

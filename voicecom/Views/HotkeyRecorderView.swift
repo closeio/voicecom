@@ -3,15 +3,19 @@ import AppKit
 
 /// A view that captures a keyboard shortcut when focused.
 struct HotkeyRecorderView: NSViewRepresentable {
+    /// When `false`, the recorder accepts a key press with no modifier keys.
+    var requireModifiers: Bool = true
     var onKeyRecorded: (UInt16, NSEvent.ModifierFlags) -> Void
 
     func makeNSView(context: Context) -> HotkeyRecorderNSView {
         let view = HotkeyRecorderNSView()
+        view.requireModifiers = requireModifiers
         view.onKeyRecorded = onKeyRecorded
         return view
     }
 
     func updateNSView(_ nsView: HotkeyRecorderNSView, context: Context) {
+        nsView.requireModifiers = requireModifiers
         // Only request first responder if not already active, to avoid
         // stealing focus on unrelated SwiftUI body re-evaluations.
         if let window = nsView.window, window.firstResponder !== nsView {
@@ -23,6 +27,7 @@ struct HotkeyRecorderView: NSViewRepresentable {
 }
 
 class HotkeyRecorderNSView: NSView {
+    var requireModifiers = true
     var onKeyRecorded: ((UInt16, NSEvent.ModifierFlags) -> Void)?
     private var localMonitor: Any?
 
@@ -39,7 +44,7 @@ class HotkeyRecorderNSView: NSView {
                 guard let self else { return event }
                 let relevantModifiers: NSEvent.ModifierFlags = [.shift, .control, .option, .command]
                 let modifiers = event.modifierFlags.intersection(relevantModifiers)
-                if !modifiers.isEmpty {
+                if !modifiers.isEmpty || !self.requireModifiers {
                     self.onKeyRecorded?(event.keyCode, modifiers)
                     return nil // Consume the event so HotkeyManager doesn't see it
                 }
@@ -61,6 +66,10 @@ class HotkeyRecorderNSView: NSView {
         localMonitor = nil
         super.removeFromSuperview()
     }
+
+    // Note: No deinit — Swift 6 strict concurrency prevents accessing
+    // non-Sendable `localMonitor` from nonisolated deinit. Monitor cleanup
+    // is handled by removeFromSuperview() and viewDidMoveToWindow(nil).
 
     // keyDown is intentionally not overridden — the local event monitor handles
     // all key capture and consumes the event so it doesn't propagate to other monitors.

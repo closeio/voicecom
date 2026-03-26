@@ -10,6 +10,9 @@ final class TextInsertionService {
     private var savedPasteboardItems: [NSPasteboardItem]?
     /// Monotonically increasing generation counter to detect stale restore callbacks.
     private var pasteGeneration: UInt64 = 0
+    /// The pasteboard changeCount after we last set transcription text.
+    /// Used to detect if the user copied something between insertText calls.
+    private var lastPasteChangeCount: Int = 0
 
     /// Maximum total byte size of clipboard data we'll save for restore.
     /// Prevents holding very large clipboard contents (e.g. images) in memory.
@@ -43,9 +46,12 @@ final class TextInsertionService {
         pasteGeneration &+= 1
         let currentGeneration = pasteGeneration
 
-        // Only save the original clipboard if we don't already have a saved copy
-        // from a previous in-flight paste (avoids saving our own transcription text)
+        // Save the original clipboard if we don't already have a saved copy,
+        // or refresh it if the user copied something since our last paste.
         if savedPasteboardItems == nil {
+            savedPasteboardItems = Self.copyPasteboardItems(from: pasteboard)
+        } else if pasteboard.changeCount != lastPasteChangeCount {
+            // User copied something between insertText calls — save their new content
             savedPasteboardItems = Self.copyPasteboardItems(from: pasteboard)
         }
 
@@ -54,13 +60,15 @@ final class TextInsertionService {
         pasteboard.setString(text, forType: .string)
 
         let changeCountAfterPaste = pasteboard.changeCount
+        lastPasteChangeCount = changeCountAfterPaste
         let previousItems = savedPasteboardItems
 
         // Use a single cancellable work item for the entire paste+restore sequence.
         // This prevents double-paste when insertText is called rapidly — cancelling
         // the work item before it fires skips both the paste and the restore.
         let workItem = DispatchWorkItem { [weak self] in
-            self?.simulatePaste()
+            guard let self, self.pasteGeneration == currentGeneration else { return }
+            self.simulatePaste()
 
             // Restore previous clipboard after giving the paste time to complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
