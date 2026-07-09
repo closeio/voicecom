@@ -1,14 +1,15 @@
 # voicecom
 
-A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and the transcribed text is pasted into whatever app you're using. All processing happens on-device using Whisper models -- no data leaves your Mac.
+A macOS menu bar app for system-wide voice-to-text. Press a hotkey, speak, and the transcribed text is pasted into whatever app you're using. All processing happens on-device using Whisper or NVIDIA Parakeet models -- no data leaves your Mac.
 
 ## Features
 
 - **Menu bar app** -- lives in your menu bar, works system-wide with no dock icon
 - **Two input modes** -- toggle recording (press to start, press to stop) or push-to-talk (hold to record, release to transcribe)
-- **Hardware-accelerated transcription** -- on-device whisper.cpp inference with Metal GPU acceleration, CPU + Accelerate, and optional CoreML encoder for ANE
-- **Multiple model sizes** -- from tiny to large-v3, downloaded automatically on first use
-- **Language selection** -- choose a transcription language or use auto-detect with multilingual models
+- **Two model families** -- OpenAI Whisper (via whisper.cpp) and NVIDIA Parakeet, selectable from a single model picker
+- **Hardware-accelerated transcription** -- on-device inference with Metal GPU acceleration, CPU + Accelerate, and optional CoreML encoder for ANE (Whisper)
+- **Multiple model sizes** -- Whisper from tiny to large-v3, plus Parakeet f16 and quantized variants, downloaded automatically on first use with a progress bar
+- **Language selection** -- choose a transcription language or use auto-detect with multilingual models (Parakeet auto-detects the language)
 - **Automatic text insertion** -- transcribed text is pasted directly into the frontmost app (full clipboard save/restore)
 - **Configurable hotkeys** -- set your own keyboard shortcuts for toggle and push-to-talk
 - **Recording safety** -- automatic stop after 5 minutes to prevent runaway recordings
@@ -57,15 +58,32 @@ Shortcuts can be changed in Settings (Cmd+,).
 
 ## Transcription
 
-voicecom uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for on-device transcription. The default model is `ggml-small`. Models are downloaded from HuggingFace on first use and cached in `~/Library/Application Support/voicecom/models/whispercpp/`.
+voicecom supports two on-device model families, both powered by [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (vendored at v1.9.1). Pick a model in Settings and the app swaps backends transparently -- Whisper and Parakeet models appear side by side in the same picker. Models are downloaded from HuggingFace on first use (with download progress shown in the UI) and cached under `~/Library/Application Support/voicecom/models/`.
 
-Hardware acceleration is layered for maximum performance:
+### Whisper (`ggml-*` models)
+
+GGML `.bin` weights (and an optional CoreML encoder) are cached in `models/whispercpp/`. Hardware acceleration is layered for maximum performance:
+
 - **Metal GPU** -- accelerates the decoder via the ggml Metal backend (enabled with flash attention)
 - **CoreML encoder** -- downloaded alongside the model for ANE acceleration (falls back to CPU automatically)
 - **Accelerate** -- used for CPU-side BLAS operations
 - **Performance cores only** -- inference threads are pinned to P-cores to avoid latency from E-cores
 
-You can select a transcription language in Settings (General tab). Use "Auto-detect" with multilingual models (e.g. `ggml-small`, `ggml-large`). English-only models (`.en` suffix) always transcribe in English regardless of this setting.
+### Parakeet (`parakeet-*` models)
+
+NVIDIA's Parakeet TDT 0.6B v3 is available via whisper.cpp's `parakeet_*` C API (whisper.cpp v1.9.0+), and `parakeet-tdt-0.6b-v3-q8_0` is the default model for new installs. Weights are downloaded as a single GGML `.bin` from the [ggml-org/parakeet-GGUF](https://huggingface.co/ggml-org/parakeet-GGUF) HuggingFace repo and cached in `models/parakeet/`. Three variants are offered:
+
+| Model | Precision | Approx. download |
+|---|---|---|
+| `parakeet-tdt-0.6b-v3` | f16 | ~1.2 GB |
+| `parakeet-tdt-0.6b-v3-q8_0` | q8_0 | ~650 MB |
+| `parakeet-tdt-0.6b-v3-q4_k` | q4_k | smaller still |
+
+Parakeet runs on the Metal GPU (with CPU fallback) and, like Whisper, pins inference threads to P-cores. There is no CoreML/ANE path. Parakeet v3 is multilingual and auto-detects the spoken language, so the language setting is ignored while a Parakeet model is selected.
+
+### Language selection
+
+You can select a transcription language in Settings (General tab). Use "Auto-detect" with multilingual Whisper models (e.g. `ggml-small`, `ggml-large`). English-only models (`.en` suffix) always transcribe in English, and Parakeet models always auto-detect, regardless of this setting.
 
 ## Building from Source
 
@@ -122,8 +140,10 @@ voicecom/
   AppState.swift             # Central @Observable state, settings, service wiring
   Services/
     TranscriptionBackend.swift   # Protocol for transcription backends
-    TranscriptionService.swift   # Transcription service facade
-    WhisperCppBackend.swift      # whisper.cpp (GGML) backend
+    TranscriptionService.swift   # Facade that routes models to the right backend
+    WhisperCppBackend.swift      # whisper.cpp (GGML) Whisper backend
+    ParakeetBackend.swift        # NVIDIA Parakeet backend (Metal GPU)
+    ModelDownloader.swift        # Model downloads with progress reporting
     AudioRecorder.swift          # AVAudioRecorder-based recording
     TextInsertionService.swift   # Clipboard + CGEvent paste
     HotkeyManager.swift         # Global keyboard shortcut handling
@@ -132,10 +152,10 @@ voicecom/
     MenuBarView.swift            # Menu bar popover UI
     SettingsView.swift           # Settings window (General + Permissions tabs)
     HotkeyRecorderView.swift     # Keyboard shortcut capture widget
-LocalWhisper/                # Local SPM package wrapping vendored whisper.cpp
-  include/                   # Public C headers + module.modulemap
+LocalWhisper/                # Local SPM package wrapping vendored whisper.cpp (Whisper + Parakeet)
+  include/                   # Public C headers (whisper.h, parakeet.h) + module.modulemap
   MetalObjC/                 # Metal backend ObjC files (compiled without ARC)
-  vendor/                    # whisper.cpp source (git submodule)
+  vendor/                    # whisper.cpp source (git submodule, v1.9.1)
   Package.swift              # Builds whisper.cpp for Apple platforms (CPU + Metal + CoreML)
 ```
 
