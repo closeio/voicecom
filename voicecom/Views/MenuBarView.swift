@@ -218,7 +218,9 @@ struct MenuBarView: View {
             HStack(spacing: 4) {
                 ProgressView()
                     .controlSize(.mini)
-                Text(appState.isModelDownloading ? "Downloading…" : "Loading…")
+                Text(appState.isModelDownloading
+                     ? (appState.modelDownloadProgress.map { "Downloading… \(Int($0 * 100))%" } ?? "Downloading…")
+                     : "Loading…")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

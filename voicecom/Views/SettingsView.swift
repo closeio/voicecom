@@ -69,8 +69,15 @@ struct GeneralSettingsTab: View {
                 }
 
                 if appState.isModelLoading {
-                    ProgressView("Downloading model…")
+                    if appState.isModelDownloading, let progress = appState.modelDownloadProgress {
+                        ProgressView(value: progress) {
+                            Text("Downloading model… \(Int(progress * 100))%")
+                        }
                         .progressViewStyle(.linear)
+                    } else {
+                        ProgressView(appState.isModelDownloading ? "Downloading model…" : "Loading model…")
+                            .progressViewStyle(.linear)
+                    }
                 }
 
                 if appState.isModelLoaded {

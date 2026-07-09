@@ -102,25 +102,21 @@ nonisolated final class ParakeetBackend: TranscriptionBackend, @unchecked Sendab
 
         // Download GGML model if not already cached locally
         if !FileManager.default.fileExists(atPath: modelFileURL.path) {
-            onPhaseChange?(.downloading)
+            onPhaseChange?(.downloading(progress: 0))
             guard let downloadURL = URL(string: "\(Self.modelBaseURL)/\(Self.remoteFileName(for: name))") else {
                 throw TranscriptionError.modelDownloadFailed
             }
             print("[voicecom] Downloading Parakeet model '\(name)' from \(downloadURL)")
 
-            // Parakeet weights are large (~1.2 GB f16); use a generous resource timeout.
-            let config = URLSessionConfiguration.default
-            config.timeoutIntervalForResource = 1200 // 20 minutes for full download
-            config.timeoutIntervalForRequest = 60
-            let session = URLSession(configuration: config)
-            defer { session.finishTasksAndInvalidate() }
-
-            let (tempURL, response) = try await session.download(from: downloadURL)
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                throw TranscriptionError.modelDownloadFailed
+            // Parakeet weights are large (q8_0 ~650 MB, f16 ~1.2 GB); report progress so a
+            // slow download doesn't look stalled. 20-minute whole-download budget.
+            let downloader = ModelDownloader(destination: modelFileURL) { fraction in
+                onPhaseChange?(.downloading(progress: fraction))
+                if let fraction {
+                    print("[voicecom] Parakeet model '\(name)' download: \(Int(fraction * 100))%")
+                }
             }
-            try? FileManager.default.removeItem(at: modelFileURL)
-            try FileManager.default.moveItem(at: tempURL, to: modelFileURL)
+            try await downloader.download(from: downloadURL, resourceTimeout: 1200)
             print("[voicecom] Parakeet model '\(name)' downloaded to \(modelFileURL.path)")
         }
 

@@ -106,7 +106,7 @@ nonisolated final class WhisperCppBackend: TranscriptionBackend, @unchecked Send
 
         // Download ggml model if not already cached locally
         if !FileManager.default.fileExists(atPath: modelFileURL.path) {
-            onPhaseChange?(.downloading)
+            onPhaseChange?(.downloading(progress: nil))
             guard let downloadURL = URL(string: "\(Self.modelBaseURL)/\(modelFileName)") else {
                 throw TranscriptionError.modelDownloadFailed
             }

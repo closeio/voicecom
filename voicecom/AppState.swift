@@ -11,13 +11,15 @@ final class AppState {
     var isModelLoaded = false
     var isModelLoading = false
     var isModelDownloading = false
+    /// Download progress as a 0.0–1.0 fraction, or nil when indeterminate.
+    var modelDownloadProgress: Double?
     var statusMessage = "Ready"
     var lastTranscription = ""
     var errorMessage: String?
 
     // MARK: - Settings
     var selectedModel: String {
-        get { UserDefaults.standard.string(forKey: "selectedModel") ?? "ggml-small" }
+        get { UserDefaults.standard.string(forKey: "selectedModel") ?? "parakeet-tdt-0.6b-v3-q8_0" }
         set { UserDefaults.standard.set(newValue, forKey: "selectedModel") }
     }
 
@@ -125,9 +127,18 @@ final class AppState {
 
     // MARK: - Lifecycle
 
+    /// True when the process is hosted by XCTest. Used to skip launching the transcription
+    /// engine during unit tests — the test host exits via `exit()` without calling
+    /// `shutdown()`, and loading a Metal model would then trip a ggml residency-set
+    /// assertion in a C++ static destructor at process teardown.
+    static let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
     func setup() async {
         guard !hasSetup else { return }
         hasSetup = true
+
+        // Don't spin up hotkeys, permission prompts, or model loading under XCTest.
+        guard !Self.isRunningTests else { return }
 
         // Clean up stale temp recordings from previous sessions once at launch
         AudioRecorder.cleanupStaleTempFiles()
@@ -215,6 +226,7 @@ final class AppState {
                 if Task.isCancelled {
                     isModelLoading = false
                     isModelDownloading = false
+                    modelDownloadProgress = nil
                 }
             }
             do {
@@ -223,11 +235,17 @@ final class AppState {
                         // Check generation to discard stale callbacks from cancelled loads
                         guard let self, self.loadModelGeneration == generation else { return }
                         switch phase {
-                        case .downloading:
+                        case .downloading(let progress):
                             self.isModelDownloading = true
-                            self.statusMessage = "Downloading model…"
+                            self.modelDownloadProgress = progress
+                            if let progress {
+                                self.statusMessage = "Downloading model… \(Int(progress * 100))%"
+                            } else {
+                                self.statusMessage = "Downloading model…"
+                            }
                         case .loading:
                             self.isModelDownloading = false
+                            self.modelDownloadProgress = nil
                             self.statusMessage = "Loading model…"
                         }
                     }
@@ -236,11 +254,13 @@ final class AppState {
                 isModelLoaded = true
                 isModelLoading = false
                 isModelDownloading = false
+                modelDownloadProgress = nil
                 statusMessage = "Ready"
             } catch {
                 guard !Task.isCancelled else { return }
                 isModelLoading = false
                 isModelDownloading = false
+                modelDownloadProgress = nil
                 errorMessage = "Model failed: \(error.localizedDescription)"
                 statusMessage = "Model not loaded"
             }

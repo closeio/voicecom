@@ -2,7 +2,9 @@ import Foundation
 
 /// Phases reported during model loading.
 enum ModelLoadPhase: Sendable {
-    case downloading
+    /// Model file is downloading. `progress` is a 0.0–1.0 fraction, or nil when
+    /// the total size is unknown (indeterminate).
+    case downloading(progress: Double?)
     case loading
 }
 
