@@ -134,6 +134,7 @@ let package = Package(
 
                 // --- GGML backend registration ---
                 "vendor/ggml/src/ggml-backend-dl.cpp",
+                "vendor/ggml/src/ggml-backend-meta.cpp",
                 "vendor/ggml/src/ggml-backend-reg.cpp",
 
                 // --- GGML CPU backend ---
@@ -167,6 +168,9 @@ let package = Package(
                 // --- Whisper ---
                 "vendor/src/whisper.cpp",
 
+                // --- Parakeet (NVIDIA Parakeet ASR, whisper.cpp v1.9.0+) ---
+                "vendor/src/parakeet.cpp",
+
                 // --- CoreML encoder (ANE acceleration) ---
                 "vendor/src/coreml/whisper-compat.m",
                 "vendor/src/coreml/whisper-encoder.mm",
@@ -192,7 +196,8 @@ let package = Package(
                 .define("GGML_USE_METAL"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
-                .define("WHISPER_VERSION", to: "\"1.8.4\""),
+                .define("WHISPER_VERSION", to: "\"1.9.1\""),
+                .define("PARAKEET_VERSION", to: "\"1.9.1\""),
                 .define("GGML_VERSION", to: "\"0.0.0\""),
                 .define("GGML_COMMIT", to: "\"unknown\""),
                 .define("_DARWIN_C_SOURCE"),
@@ -213,7 +218,8 @@ let package = Package(
                 .define("GGML_USE_METAL"),
                 .define("WHISPER_USE_COREML"),
                 .define("WHISPER_COREML_ALLOW_FALLBACK"),
-                .define("WHISPER_VERSION", to: "\"1.8.4\""),
+                .define("WHISPER_VERSION", to: "\"1.9.1\""),
+                .define("PARAKEET_VERSION", to: "\"1.9.1\""),
                 .define("GGML_VERSION", to: "\"0.0.0\""),
                 .define("GGML_COMMIT", to: "\"unknown\""),
                 .define("_DARWIN_C_SOURCE"),

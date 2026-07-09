@@ -183,6 +183,9 @@ final class AppState {
                 "ggml-small.en",
                 "ggml-medium.en",
                 "ggml-large-v3-turbo",
+                "parakeet-tdt-0.6b-v3",
+                "parakeet-tdt-0.6b-v3-q8_0",
+                "parakeet-tdt-0.6b-v3-q4_k",
             ]
         }
     }

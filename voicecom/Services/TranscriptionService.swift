@@ -1,27 +1,27 @@
 import Foundation
 
 nonisolated final class TranscriptionService: @unchecked Sendable {
-    /// Lock protecting `backend` from concurrent access.
+    /// Lock protecting `backend`/`backendIsParakeet` from concurrent access.
     private let lock = NSLock()
-    private var backend: WhisperCppBackend?
+    private var backend: (any TranscriptionBackend)?
+    /// Tracks the concrete type of the current backend so we know when a model
+    /// selection requires swapping to the other backend.
+    private var backendIsParakeet = false
 
-    private func resolveBackend() -> WhisperCppBackend {
-        lock.lock()
-        defer { lock.unlock() }
-        if let backend {
-            return backend
-        }
-        let newBackend = WhisperCppBackend()
-        backend = newBackend
-        return newBackend
-    }
+    /// Parakeet models are routed to `ParakeetBackend`; everything else (the `ggml-*`
+    /// Whisper models) goes to `WhisperCppBackend`.
+    private static func isParakeet(_ name: String) -> Bool { name.hasPrefix("parakeet") }
 
+    /// Merges both backends' curated model lists so Whisper and Parakeet models
+    /// both appear in the picker.
     func fetchAvailableModels() async throws -> [String] {
-        try await WhisperCppBackend.fetchAvailableModels()
+        async let whisper = WhisperCppBackend.fetchAvailableModels()
+        async let parakeet = ParakeetBackend.fetchAvailableModels()
+        return try await whisper + parakeet
     }
 
     func loadModel(name: String, onPhaseChange: (@Sendable (ModelLoadPhase) -> Void)? = nil) async throws {
-        let backend = resolveBackend()
+        let backend = await prepareBackend(for: name)
         try await backend.loadModel(name: name, onPhaseChange: onPhaseChange)
     }
 
@@ -30,9 +30,41 @@ nonisolated final class TranscriptionService: @unchecked Sendable {
         return try await backend.transcribe(audioBuffer: audioBuffer, language: language)
     }
 
+    /// Returns the backend appropriate for `name`, swapping backend type if the
+    /// selected model belongs to the other backend. Unloading the old backend may
+    /// block, so it runs on a non-cooperative thread.
+    private func prepareBackend(for name: String) async -> any TranscriptionBackend {
+        let wantParakeet = Self.isParakeet(name)
+        if let current = currentBackend(matchingParakeet: wantParakeet) {
+            return current
+        }
+        // Wrong (or no) backend loaded — tear down the old one before creating the new.
+        if let old = extractAndClearBackend() {
+            await Task.detached(priority: .userInitiated) { old.unloadModel() }.value
+        }
+        let newBackend: any TranscriptionBackend = wantParakeet ? ParakeetBackend() : WhisperCppBackend()
+        storeBackend(newBackend, isParakeet: wantParakeet)
+        return newBackend
+    }
+
+    /// Returns the current backend if it exists and matches the requested type.
+    private func currentBackend(matchingParakeet wantParakeet: Bool) -> (any TranscriptionBackend)? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let backend, backendIsParakeet == wantParakeet else { return nil }
+        return backend
+    }
+
+    private func storeBackend(_ b: any TranscriptionBackend, isParakeet: Bool) {
+        lock.lock()
+        backend = b
+        backendIsParakeet = isParakeet
+        lock.unlock()
+    }
+
     /// Reads the current backend under the lock, synchronously.
     /// Extracted to a non-async method so NSLock can be used safely.
-    private func getBackendForTranscription() throws -> WhisperCppBackend {
+    private func getBackendForTranscription() throws -> any TranscriptionBackend {
         lock.lock()
         defer { lock.unlock() }
         guard let backend else {
@@ -51,11 +83,12 @@ nonisolated final class TranscriptionService: @unchecked Sendable {
 
     /// Extracts and nils the backend reference under the lock.
     /// Separate sync method so NSLock is not used from an async context.
-    private func extractAndClearBackend() -> WhisperCppBackend? {
+    private func extractAndClearBackend() -> (any TranscriptionBackend)? {
         lock.lock()
         defer { lock.unlock() }
         let b = backend
         backend = nil
+        backendIsParakeet = false
         return b
     }
 }
