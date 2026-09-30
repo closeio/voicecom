@@ -87,9 +87,18 @@ final class AppState {
 
     /// Language code for transcription (e.g. "en", "auto").
     /// Use "auto" to let Whisper detect the language automatically.
+    /// Computed properties aren't tracked by `@Observable`, so register the read/write
+    /// explicitly — otherwise views bound to this setting (e.g. the Language picker) never refresh.
     var transcriptionLanguage: String {
-        get { UserDefaults.standard.string(forKey: "transcriptionLanguage") ?? "en" }
-        set { UserDefaults.standard.set(newValue, forKey: "transcriptionLanguage") }
+        get {
+            access(keyPath: \.transcriptionLanguage)
+            return UserDefaults.standard.string(forKey: "transcriptionLanguage") ?? "en"
+        }
+        set {
+            withMutation(keyPath: \.transcriptionLanguage) {
+                UserDefaults.standard.set(newValue, forKey: "transcriptionLanguage")
+            }
+        }
     }
 
     var launchAtLogin: Bool {
