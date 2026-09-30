@@ -60,14 +60,15 @@ All services are plain classes (no dependency injection container):
 
 A local SPM package (the app's only package dependency) that wraps the vendored whisper.cpp C/C++ library — including Whisper and Parakeet — for use from Swift:
 
-- `LocalWhisper/vendor/` — Git submodule pinned to a whisper.cpp release tag (currently v1.9.1), containing the ggml + whisper + parakeet source.
+- `LocalWhisper/vendor/` — Git submodule pinned to a whisper.cpp release tag (currently v1.9.4), containing the ggml + whisper + parakeet source.
 - `LocalWhisper/include/` — Copies of the public headers (`whisper.h`, `parakeet.h`, ggml headers) and `module.modulemap`. These are physical copies, not symlinks.
-- `LocalWhisper/MetalObjC/` — The ggml Metal backend: the `.metal` shader + its headers (raw copies of the vendor sources) and thin `*-mrc.m` wrappers compiled without ARC.
-- `LocalWhisper/Package.swift` — Hand-curated source list compiling only Apple-relevant sources (ARM NEON, Accelerate, Metal, CoreML encoder). Excludes CUDA, Vulkan, x86, and other non-Apple backends. Because there is no CMake, version macros (`WHISPER_VERSION`, `PARAKEET_VERSION`, etc.) must be defined here manually.
+- `LocalWhisper/MetalObjC/` — The ggml Metal backend: `kernels/` (per-kind `.metal` sources + `common.h`/`quantize.h`/`dequantize.h`), `ggml-common.h`, `ggml-metal-impl.h` (all raw copies of the vendor sources), and thin `*-mrc.m` wrappers compiled without ARC. The kernels and headers are bundled as resources with their layout preserved; ggml compiles them at runtime and resolves their `#include`s relative to `kernels/` and its parent.
+- `LocalWhisper/generated/ggml-version.h` — Hand-maintained stand-in for the CMake-generated header (`GGML_VERSION`, `GGML_COMMIT`).
+- `LocalWhisper/Package.swift` — Hand-curated source list compiling only Apple-relevant sources (ARM NEON, Accelerate, Metal, CoreML encoder). Excludes CUDA, Vulkan, x86, and other non-Apple backends. Because there is no CMake, version macros (`WHISPER_VERSION`, `PARAKEET_VERSION`) must be defined here manually.
 - Linked frameworks: Accelerate, CoreML, Metal, MetalKit
 - Key defines: `GGML_USE_ACCELERATE`, `GGML_USE_CPU`, `GGML_USE_METAL`, `WHISPER_USE_COREML`, `WHISPER_COREML_ALLOW_FALLBACK`
 
-Bumping the vendored whisper.cpp version is a manual multi-step sync (submodule checkout + re-copy headers/Metal sources + update `Package.swift`), not just a submodule update.
+Bumping the vendored whisper.cpp version is a manual multi-step sync (submodule checkout + re-copy headers/Metal sources + update `Package.swift` sources/excludes/version macros + update `generated/ggml-version.h`), not just a submodule update. Check `ggml/src/ggml-metal/CMakeLists.txt` for new kernel files and the vendor diff for new `.cpp` files or generated `.h.in` headers.
 
 ## Key Patterns
 

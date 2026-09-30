@@ -198,10 +198,8 @@ struct MenuBarView: View {
 
             // Quit button
             Button {
-                Task {
-                    await appState.shutdown()
-                    NSApplication.shared.terminate(nil)
-                }
+                // AppDelegate.applicationShouldTerminate runs appState.shutdown() first
+                NSApplication.shared.terminate(nil)
             } label: {
                 Image(systemName: "power")
                     .font(.system(size: 13))
